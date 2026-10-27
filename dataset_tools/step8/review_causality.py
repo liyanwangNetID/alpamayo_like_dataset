@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from project_paths import ALPASIM_DATA_ROOT
+
 from .causality import build_structured_causality
 from .contract import JoinedAnchor, Step8Paths, load_and_validate_inputs
 
@@ -169,7 +171,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("[Step 8 review] Formal/runtime consistency: PASS")
 
     if not args.no_video:
-        _render_scene_fact_video(selected_joined.anchor_id, paths.data_root)
+        _render_scene_fact_video(selected_joined.anchor_id, ALPASIM_DATA_ROOT)
 
     _section("Identity", {
         "anchor_id": selected_joined.anchor_id,

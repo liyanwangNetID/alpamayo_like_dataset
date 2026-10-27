@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 from project_paths import SCHEMA_ROOT
 from step2.coordinate_utils import Pose2D, yaw_to_quaternion
-from step7.scene_facts import (CAMERA_NAMES, DISTANCE_TREND_CATEGORIES, FINAL_RECORD_REQUIRED_KEYS, FORBIDDEN_FUTURE_INPUTS, OBSERVABILITY_STATUSES, PROXIMITY_STATUSES, QUALITY_STATUSES, RELATIVE_DISTANCE_CATEGORIES, RELATIVE_POSITION_REGIONS, RELATIVE_SPEED_CATEGORIES, LANE_DIRECTION_RELATIONS, ROAD_CONTEXT_TYPES, SCENE_FACT_FORMAT_VERSION, SceneFactValidationError, classify_geometric_region, classify_road_context, compute_actor_geometry, compute_snapshot_actor_geometries, distance_trend, load_scene_fact_validator, recorded_ego_pose_and_speed, relative_distance_category, relative_speed_category, validate_scene_fact_record)
+from step7.scene_facts import (
+    scene_fact_schema,
+    write_scene_fact_schema,CAMERA_NAMES, DISTANCE_TREND_CATEGORIES, FINAL_RECORD_REQUIRED_KEYS, FORBIDDEN_FUTURE_INPUTS, OBSERVABILITY_STATUSES, PROXIMITY_STATUSES, QUALITY_STATUSES, RELATIVE_DISTANCE_CATEGORIES, RELATIVE_POSITION_REGIONS, RELATIVE_SPEED_CATEGORIES, LANE_DIRECTION_RELATIONS, ROAD_CONTEXT_TYPES, SCENE_FACT_FORMAT_VERSION, SceneFactValidationError, classify_geometric_region, classify_road_context, compute_actor_geometry, compute_snapshot_actor_geometries, distance_trend, load_scene_fact_validator, recorded_ego_pose_and_speed, relative_distance_category, relative_speed_category, validate_scene_fact_record)
 
 def actor(*, x: float, y: float, yaw: float=0.0, velocity_x: float=0.0, velocity_y: float=0.0, speed: float=0.0, track_id: str='actor-1', label_class: str='automobile', is_static: bool=False) -> dict:
     qx, qy, qz, qw = yaw_to_quaternion(yaw)
@@ -159,11 +161,17 @@ class SceneFactSchemaTests(unittest.TestCase):
 
     def test_json_schema_uses_configured_schema_root(self):
         schema_path = SCHEMA_ROOT / 'scene_fact_schema_v0.1-draft.json'
-        self.assertTrue(schema_path.is_file())
+        self.assertTrue(schema_path.is_relative_to(SCHEMA_ROOT))
+
+    def test_json_schema_can_be_materialized_from_code(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            schema_path = Path(directory) / 'scene_fact_schema_v0.1-draft.json'
+            write_scene_fact_schema(schema_path)
+            self.assertEqual(json.loads(schema_path.read_text(encoding='utf-8')), scene_fact_schema())
 
     def test_python_vocabulary_matches_json_schema(self):
-        schema_path = SCHEMA_ROOT / 'scene_fact_schema_v0.1-draft.json'
-        schema = json.loads(schema_path.read_text(encoding='utf-8'))
+        schema = scene_fact_schema()
         definitions = schema['$defs']
         comparisons = {'cameraName': set(CAMERA_NAMES), 'proximityStatus': set(PROXIMITY_STATUSES), 'relativePosition': set(RELATIVE_POSITION_REGIONS), 'relativeDistance': set(RELATIVE_DISTANCE_CATEGORIES), 'distanceTrend': set(DISTANCE_TREND_CATEGORIES), 'relativeSpeed': set(RELATIVE_SPEED_CATEGORIES), 'laneDirectionRelation': set(LANE_DIRECTION_RELATIONS), 'qualityStatus': set(QUALITY_STATUSES)}
         for definition_name, expected in comparisons.items():
@@ -185,6 +193,17 @@ class SceneFactSchemaTests(unittest.TestCase):
         self.assertEqual(
             set(definitions["actor"]["properties"]["observability_status"]["enum"]),
             {"candidate_visible", "partially_occluded"},
+        )
+        lists_schema = definitions["actorContext"]["properties"]["lists"]
+        self.assertEqual(lists_schema["type"], "object")
+        self.assertEqual(
+            set(lists_schema["required"]),
+            {"lead_actors", "left_nearby_actors", "right_nearby_actors"},
+        )
+        metadata = definitions["actorListMetadata"]
+        self.assertEqual(
+            set(metadata["required"]),
+            {"candidate_count", "selected_count", "maximum_count", "truncated"},
         )
 if __name__ == '__main__':
     unittest.main(verbosity=2)

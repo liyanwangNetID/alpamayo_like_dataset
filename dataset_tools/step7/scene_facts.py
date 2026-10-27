@@ -344,6 +344,127 @@ def summarize_final_scene_facts(*, keyframes, rows):
     return {"schema_version": "step7l-final-scene-facts-summary-v02", "keyframe_count": len(anchors), "scene_fact_row_count": len(rows), "road_context_type_counts": dict(sorted(Counter(row["road_context"]["type"] for row in rows).items())), "quality_status_counts": dict(sorted(Counter(row["quality"]["status"] for row in rows).items())), "selected_actor_counts": {key: sum(len(row["actor_context"][key]) for row in rows) for key in ACTOR_LIST_KEYS}, "schema_validation_error_count": 0}
 
 
+
+
+def scene_fact_schema():
+    number = {"type": "number"}
+    text = {"type": "string", "minLength": 1}
+    reasons = {"type": "array", "items": text, "uniqueItems": True}
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "scene_fact_schema_v0.1-draft.json",
+        "title": "AlpaSim Scene Fact v0.1-draft",
+        "type": "object", "additionalProperties": False,
+        "required": sorted(FINAL_RECORD_REQUIRED_KEYS),
+        "properties": {
+            "scene_fact_format_version": {"const": SCENE_FACT_FORMAT_VERSION},
+            "generator_version": {"const": GENERATOR_VERSION},
+            "rule_version": {"const": RULE_VERSION},
+            "anchor_id": text,
+            "clip_id": {"type": "string", "pattern": "^test_clip_[0-9]+$"},
+            "anchor_ns": {"type": "integer", "minimum": 0},
+            "road_context": {"$ref": "#/$defs/roadContext"},
+            "actor_context": {"$ref": "#/$defs/actorContext"},
+            "quality": {"$ref": "#/$defs/recordQuality"},
+        },
+        "$defs": {
+            "cameraName": {"type": "string", "enum": sorted(CAMERA_NAMES)},
+            "proximityStatus": {"type": "string", "enum": sorted(PROXIMITY_STATUSES)},
+            "relativePosition": {"type": "string", "enum": sorted(RELATIVE_POSITION_REGIONS)},
+            "relativeDistance": {"type": "string", "enum": sorted(RELATIVE_DISTANCE_CATEGORIES)},
+            "distanceTrend": {"type": "string", "enum": sorted(DISTANCE_TREND_CATEGORIES)},
+            "relativeSpeed": {"type": "string", "enum": sorted(RELATIVE_SPEED_CATEGORIES)},
+            "laneDirectionRelation": {"type": "string", "enum": sorted(LANE_DIRECTION_RELATIONS)},
+            "qualityStatus": {"type": "string", "enum": sorted(QUALITY_STATUSES)},
+            "roadContext": {
+                "type": "object", "additionalProperties": False,
+                "required": ["type", "intersection_proximity", "stop_line_proximity", "yield_line_proximity", "quality_status", "reasons"],
+                "properties": {
+                    "type": {"type": "string", "enum": sorted(ROAD_CONTEXT_TYPES)},
+                    "intersection_proximity": {"$ref": "#/$defs/proximityStatus"},
+                    "stop_line_proximity": {"$ref": "#/$defs/proximityStatus"},
+                    "yield_line_proximity": {"$ref": "#/$defs/proximityStatus"},
+                    "quality_status": {"$ref": "#/$defs/qualityStatus"},
+                    "reasons": reasons,
+                },
+            },
+            "actorListMetadata": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["candidate_count", "selected_count", "maximum_count", "truncated"],
+                "properties": {
+                    "candidate_count": {"type": "integer", "minimum": 0},
+                    "selected_count": {"type": "integer", "minimum": 0},
+                    "maximum_count": {"type": "integer", "minimum": 0},
+                    "truncated": {"type": "boolean"},
+                },
+            },
+            "actor": {
+                "type": "object", "additionalProperties": False,
+                "required": ["role_rank", "track_id", "actor_class", "relative_position", "relative_distance", "lane_direction_relation", "relative_x_m", "relative_y_m", "distance_m", "distance_trend", "relative_speed_category", "actor_speed_mps", "ego_speed_mps", "observability_status", "visible_in_cameras", "quality_status", "reasons"],
+                "properties": {
+                    "role_rank": {"type": "integer", "minimum": 1},
+                    "track_id": text, "actor_class": text,
+                    "relative_position": {"$ref": "#/$defs/relativePosition"},
+                    "relative_distance": {"$ref": "#/$defs/relativeDistance"},
+                    "lane_direction_relation": {"$ref": "#/$defs/laneDirectionRelation"},
+                    "relative_x_m": number, "relative_y_m": number,
+                    "distance_m": {"type": "number", "minimum": 0},
+                    "distance_trend": {"$ref": "#/$defs/distanceTrend"},
+                    "relative_speed_category": {"$ref": "#/$defs/relativeSpeed"},
+                    "actor_speed_mps": number, "ego_speed_mps": number,
+                    "observability_status": {"type": "string", "enum": ["candidate_visible", "partially_occluded"]},
+                    "visible_in_cameras": {"type": "array", "items": {"$ref": "#/$defs/cameraName"}, "minItems": 1, "uniqueItems": True},
+                    "quality_status": {"$ref": "#/$defs/qualityStatus"},
+                    "reasons": reasons,
+                },
+            },
+            "actorContext": {
+                "type": "object", "additionalProperties": False,
+                "required": ["reference_ego_speed_mps", "forward_horizon_m", "side_forward_horizon_m", "rear_horizon_m", "lists", "lead_actors", "left_nearby_actors", "right_nearby_actors"],
+                "properties": {
+                    "reference_ego_speed_mps": number,
+                    "forward_horizon_m": {"type": "number", "minimum": 0},
+                    "side_forward_horizon_m": {"type": "number", "minimum": 0},
+                    "rear_horizon_m": {"type": "number", "minimum": 0},
+                    "lists": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["lead_actors", "left_nearby_actors", "right_nearby_actors"],
+                        "properties": {
+                            "lead_actors": {"$ref": "#/$defs/actorListMetadata"},
+                            "left_nearby_actors": {"$ref": "#/$defs/actorListMetadata"},
+                            "right_nearby_actors": {"$ref": "#/$defs/actorListMetadata"},
+                        },
+                    },
+                    "lead_actors": {"type": "array", "items": {"$ref": "#/$defs/actor"}, "maxItems": 4},
+                    "left_nearby_actors": {"type": "array", "items": {"$ref": "#/$defs/actor"}, "maxItems": 6},
+                    "right_nearby_actors": {"type": "array", "items": {"$ref": "#/$defs/actor"}, "maxItems": 6},
+                },
+            },
+            "recordQuality": {
+                "type": "object", "additionalProperties": False,
+                "required": ["status", "static_occlusion_evaluated", "reasons"],
+                "properties": {
+                    "status": {"$ref": "#/$defs/qualityStatus"},
+                    "static_occlusion_evaluated": {"const": False},
+                    "reasons": reasons,
+                },
+            },
+        },
+    }
+
+
+def write_scene_fact_schema(schema_path):
+    path = Path(schema_path)
+    schema = scene_fact_schema()
+    Draft202012Validator.check_schema(schema)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(schema, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+    return path
+
 class SceneFactValidationError(ValueError):
     pass
 

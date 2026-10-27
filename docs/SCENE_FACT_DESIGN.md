@@ -492,7 +492,7 @@ All unconfigured Clips use zero offset. Review offsets do not alter formal evide
 Reusable all-Actor diagnostic:
 
 ```text
-scripts/dataset_tools/step7/render_all_actor_debug.py
+dataset_tools/step7/render_all_actor_debug.py
 ```
 
 ## 18. Validation and deterministic rebuild
@@ -500,7 +500,7 @@ scripts/dataset_tools/step7/render_all_actor_debug.py
 Complete tests:
 
 ```bash
-cd /home/lab/alpasim_ros2_ws/scripts/dataset_tools
+cd /home/lab/alpamayo_like_dataset/dataset_tools
 
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
   python3 -m pytest -q

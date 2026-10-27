@@ -337,24 +337,24 @@ src/alpasim_dataset_tools/alpasim_dataset_tools/data_batch_recorder.py
 Shared reader and path code:
 
 ```text
-scripts/dataset_tools/project_paths.py
-scripts/dataset_tools/step2/clip_reader.py
-scripts/dataset_tools/step2/temporal_index.py
-scripts/dataset_tools/step2/coordinate_utils.py
-scripts/dataset_tools/step2/vector_map_reader.py
+dataset_tools/project_paths.py
+dataset_tools/step2/clip_reader.py
+dataset_tools/step2/temporal_index.py
+dataset_tools/step2/coordinate_utils.py
+dataset_tools/step2/vector_map_reader.py
 ```
 
 Frozen Step 7 raw-data consumers and geometry:
 
 ```text
-scripts/dataset_tools/step7/
-scripts/dataset_tools/tests/step7/
+dataset_tools/step7/
+dataset_tools/tests/step7/
 ```
 
 Frozen Step 8 causality tools:
 ```text
-scripts/dataset_tools/step8/
-scripts/dataset_tools/tests/step8/
+dataset_tools/step8/
+dataset_tools/tests/step8/
 ```
 
 Primary project handoff:

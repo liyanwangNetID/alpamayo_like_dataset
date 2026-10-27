@@ -2,11 +2,11 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from project_paths import ALPASIM_DATA_ROOT
+from project_paths import DATASET_OUTCOME_ROOT
 
 @dataclass(frozen=True)
 class Step9Config:
-    data_root: Path = ALPASIM_DATA_ROOT
+    data_root: Path = DATASET_OUTCOME_ROOT
     base_url: str = "http://127.0.0.1:11434"
     model: str = "qwen3:14b"
     expected_family: str = "qwen3"
@@ -23,7 +23,7 @@ class Step9Config:
     @classmethod
     def from_environment(cls, data_root: Path | str | None = None) -> "Step9Config":
         return cls(
-            data_root=Path(data_root or os.environ.get("ALPASIM_DATA_ROOT", ALPASIM_DATA_ROOT)).expanduser().resolve(),
+            data_root=Path(data_root or os.environ.get("DATASET_OUTCOME_ROOT", DATASET_OUTCOME_ROOT)).expanduser().resolve(),
             base_url=os.environ.get("STEP9_OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/"),
             model=os.environ.get("STEP9_OLLAMA_MODEL", "qwen3:14b"),
         )

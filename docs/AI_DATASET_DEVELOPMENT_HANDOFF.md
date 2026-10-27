@@ -29,16 +29,18 @@ Step 7 produces structured Scene Facts only. Step 8 produces structured chain of
 There are two repositories and one external data root:
 
 - `ALPASIM_ROOT`: external AlpaSim simulator repository
-- `ALPASIM_ROS2_WS`: this ROS 2 workspace
-- `ALPASIM_DATA_ROOT`: raw `test_clip_NNN` directories and generated dataset artifacts
+- `DATASET_REPOSITORY_ROOT`: this standalone dataset repository
+- `ALPASIM_DATA_ROOT`: read-only raw `test_clip_NNN` directories
+- `DATASET_OUTCOME_ROOT`: generated dataset artifacts
 
-Python tools use `scripts/dataset_tools/project_paths.py`. Shell tools use `scripts/load_local_paths.sh`. Environment variables and supported CLI path arguments override local defaults.
+Python tools use `dataset_tools/project_paths.py`. Shell tools use `scripts/load_local_paths.sh`. Environment variables and supported CLI path arguments override local defaults.
 
 On the current development machine:
 
 ```text
-ALPASIM_ROS2_WS=/home/lab/alpasim_ros2_ws
+DATASET_REPOSITORY_ROOT=/home/lab/alpamayo_like_dataset
 ALPASIM_DATA_ROOT=/home/lab/data_from_alpasim
+DATASET_OUTCOME_ROOT=/home/lab/alpamayo_like_dataset/outcome
 ```
 
 Formal artifacts belong under:
@@ -63,7 +65,7 @@ Do not store formal generated artifacts in the code directory. The data artifact
 - When multiple versions exist, inspect the actual imports, execution chain, version constants, and product source before selecting the active implementation.
 - Preserve deterministic outputs and compare SHA-256 after production changes.
 - Do not mix temporary diagnostics, Shadow outputs, review products, and production artifacts.
-- Non-ROS dataset tools belong under `scripts/dataset_tools/`.
+- Non-ROS dataset tools belong under `dataset_tools/`.
 - Do not ask the user to create scripts with `cat`, heredoc, or manual copy-and-paste. Create downloadable files directly.
 - When multiple downloadable files are supplied, also provide a directly executable batch move or installation command.
 - Before sending Shell or Python commands, verify that no characters are corrupted or replaced by star characters.
@@ -121,18 +123,18 @@ Steps 1 through 9 are implemented and frozen. Step 10 Sample Manifest is the nex
 Production and tests are organized by Step:
 
 ```text
-scripts/dataset_tools/step1/
-scripts/dataset_tools/step2/
-scripts/dataset_tools/step3/
-scripts/dataset_tools/step4/
-scripts/dataset_tools/step5/
-scripts/dataset_tools/step6/
-scripts/dataset_tools/step7/
-scripts/dataset_tools/tests/step1/
+dataset_tools/step1/
+dataset_tools/step2/
+dataset_tools/step3/
+dataset_tools/step4/
+dataset_tools/step5/
+dataset_tools/step6/
+dataset_tools/step7/
+dataset_tools/tests/step1/
 ...
-scripts/dataset_tools/tests/step7/
-scripts/dataset_tools/step8/
-scripts/dataset_tools/tests/step8/
+dataset_tools/tests/step7/
+dataset_tools/step8/
+dataset_tools/tests/step8/
 ```
 
 The frozen Step 7 package contains:
@@ -162,7 +164,7 @@ scene_facts.py
 A reusable Step 7 diagnostic remains outside the package:
 
 ```text
-scripts/dataset_tools/step7/render_all_actor_debug.py
+dataset_tools/step7/render_all_actor_debug.py
 ```
 
 ## 7. Steps 1 through 4
@@ -178,10 +180,10 @@ Step 1 scans recorded Clip structure and validates required raw artifacts, reada
 Step 2 provides unified Clip reading, temporal indexes, bounded lookup, interpolation, coordinate conversion, calibration loading, and VectorMap caching. Shared components include:
 
 ```text
-scripts/dataset_tools/step2/clip_reader.py
-scripts/dataset_tools/step2/temporal_index.py
-scripts/dataset_tools/step2/coordinate_utils.py
-scripts/dataset_tools/step2/vector_map_reader.py
+dataset_tools/step2/clip_reader.py
+dataset_tools/step2/temporal_index.py
+dataset_tools/step2/coordinate_utils.py
+dataset_tools/step2/vector_map_reader.py
 ```
 
 ### Step 3: Candidate Anchors
@@ -774,7 +776,7 @@ python3 -u -m step8.semantic_profile
 Run the complete suite with:
 
 ```bash
-cd /home/lab/alpasim_ros2_ws/scripts/dataset_tools
+cd /home/lab/alpamayo_like_dataset/dataset_tools
 
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
   python3 -m pytest -q
@@ -990,7 +992,7 @@ This document is the only mandatory handoff file. After reading it, a new assist
 Run the complete test suite first:
 
 ```bash
-cd /home/lab/alpasim_ros2_ws/scripts/dataset_tools
+cd /home/lab/alpamayo_like_dataset/dataset_tools
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q
 ```
 

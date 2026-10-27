@@ -64,13 +64,14 @@ EXPECTED_CONTRACT_VERSION = "0.1"
 EXPECTED_CONTRACT_PRODUCER_STEP = 3
 
 
-def step4_feature_commands() -> tuple[tuple[str, ...], ...]:
+def step4_feature_commands(*, force: bool = False) -> tuple[tuple[str, ...], ...]:
     """Return the frozen Step 4 feature-generation command sequence."""
+    suffix = ("--force",) if force else ()
     return (
-        (sys.executable, "-m", "step4.profile_lane_matching_features"),
-        (sys.executable, "-m", "step4.refine_lane_matching_features"),
-        (sys.executable, "-m", "step4.profile_lateral_action_features"),
-        (sys.executable, "-m", "step4.profile_meta_action_features"),
+        (sys.executable, "-m", "step4.profile_lane_matching_features") + suffix,
+        (sys.executable, "-m", "step4.refine_lane_matching_features") + suffix,
+        (sys.executable, "-m", "step4.profile_lateral_action_features") + suffix,
+        (sys.executable, "-m", "step4.profile_meta_action_features") + suffix,
         (
             sys.executable,
             "-m",
@@ -81,10 +82,10 @@ def step4_feature_commands() -> tuple[tuple[str, ...], ...]:
     )
 
 
-def run_step4_feature_pipeline() -> None:
+def run_step4_feature_pipeline(*, force: bool = False) -> None:
     """Generate all Step 4 feature inputs from Candidate Anchors."""
     project_directory = Path(__file__).resolve().parent.parent
-    commands = step4_feature_commands()
+    commands = step4_feature_commands(force=force)
 
     for index, command in enumerate(commands, start=1):
         print()
@@ -303,7 +304,7 @@ def main() -> int:
     args = parse_args()
 
     if not args.reuse_existing_features:
-        run_step4_feature_pipeline()
+        run_step4_feature_pipeline(force=args.force)
 
     require_feature_files(
         args.lateral_input,

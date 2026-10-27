@@ -275,7 +275,7 @@ def lane_start_indices(sequence: Sequence[str], transition_rows: Sequence[Mappin
 def turn_direction_from_yaw(yaws: Sequence[float], start_index: int, minimum_deg: float = 3.0) -> str | None:
     if not yaws or start_index >= len(yaws) - 1:
         return None
-    from lane_change_geometry import angle_difference
+    from step4.lane_change_geometry import angle_difference
     change = math.degrees(angle_difference(yaws[start_index], yaws[-1]))
     if change >= minimum_deg:
         return "left"
@@ -298,7 +298,7 @@ def corridor_heading_residual(
     corridor: Sequence[Any],
 ) -> dict[str, float]:
     """Compare observed ego heading change with a downstream corridor."""
-    from lane_change_geometry import angle_difference, sample_polyline
+    from step4.lane_change_geometry import angle_difference, sample_polyline
 
     if len(trajectory_xy) < 2 or len(trajectory_yaw) < 2:
         raise ValueError("trajectory too short for heading residual")
@@ -362,7 +362,7 @@ def spatial_candidate_direction(
     target_corridor: Sequence[Any],
 ) -> str | None:
     """Determine target side from target start projected on source corridor."""
-    from lane_change_geometry import project_to_polyline, sample_polyline
+    from step4.lane_change_geometry import project_to_polyline, sample_polyline
 
     target_start, _ = sample_polyline(target_corridor, 0.0)
     projection = project_to_polyline(source_corridor, target_start)
@@ -385,7 +385,7 @@ def analyze_anchor(
     parallel_config: ParallelCorridorConfig,
     in_progress_config: InProgressLaneChangeConfig,
 ) -> dict[str, Any]:
-    from lane_matcher import trajectory_poses_from_gt_points
+    from step4.lane_matcher import trajectory_poses_from_gt_points
 
     anchor_id = str(feature_record["anchor_id"])
     anchor_ns = int(feature_record["anchor_ns"])
@@ -718,8 +718,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    from clip_reader import DrivingClipReader
-    from vector_map_reader import VectorMapReader
+    from step2.clip_reader import DrivingClipReader
+    from step2.vector_map_reader import VectorMapReader
     meta_index = read_jsonl_index(args.meta_feature_input)
     lateral_index = read_jsonl_index(args.lateral_feature_input)
     meta_ids = set(meta_index)

@@ -9,20 +9,21 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
+
+from project_paths import DATASET_OUTCOME_ROOT
 
 STRUCTURED_CAUSALITY_FORMAT_VERSION = "0.1-draft"
 GENERATOR_VERSION = "0.1.0"
 RULE_VERSION = "structured_causality_rules_v0.2"
 
 EXPECTED_SHA256 = {
-    "keyframes": "bb3cc755d537c0b8fa0c68aff457106ee00d583bff448bf737c2d286e0ccabf7",
-    "meta_actions": "a07aacf417829e11d2fe437f01318d509d2d5a007a196440f3d9be95110f5973",
-    "navigation": "bf7d91b283ef3ef93f421d24cdb267d2cbcfa7c241ac20f56ba7dad5bcaf572d",
-    "scene_facts": "7b50f955058bbb159075b26a925bf5efc7aef15df189e11b649de63d8aa59fd8",
+    "keyframes": "ab23cfe96037f35eef6bd3d687e01c2b8ca724403dd2306ae26f4d2480d7b841",
+    "meta_actions": "4c95d382ae94534953ae250cdd4331c3fe538583222f5a89b4623a51c9aaa42b",
+    "navigation": "6a8754e20d0e261b716326d49987570e35255661e44388d10b8e31780ee9229f",
+    "scene_facts": "d9f1c772d1538b33153a06af492f3afe873255d57bf8a9606698e98cad3586bc",
 }
 
 
@@ -41,10 +42,7 @@ class Step8Paths:
 
     @classmethod
     def from_data_root(cls, data_root: Path | str | None = None) -> "Step8Paths":
-        root = Path(
-            data_root
-            or os.environ.get("ALPASIM_DATA_ROOT", "/home/lab/data_from_alpasim")
-        ).expanduser().resolve()
+        root = Path(data_root or DATASET_OUTCOME_ROOT).expanduser().resolve()
         annotations = root / "annotations" / "v0.1-draft"
         return cls(
             data_root=root,

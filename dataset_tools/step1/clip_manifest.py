@@ -39,6 +39,44 @@ CAMERA_NAMES = (
     "cross_right",
 )
 
+IGNORED_UPSTREAM_VALIDATION_CHECKS = frozenset({
+    "has_filtered_static_occupancy",
+    "static_occupancy_scene_matches_map",
+})
+
+
+def normalize_upstream_validation(validation):
+    """Exclude upstream checks outside the Step 1 through Step 9 contract."""
+    checks = {}
+    required_checks = []
+    valid = None
+    if validation is None:
+        return checks, required_checks, valid
+
+    raw_checks = validation.get("checks", {})
+    if isinstance(raw_checks, dict):
+        checks = {
+            str(name): passed
+            for name, passed in raw_checks.items()
+            if str(name) not in IGNORED_UPSTREAM_VALIDATION_CHECKS
+        }
+
+    raw_required = validation.get("required_checks", [])
+    if isinstance(raw_required, list):
+        required_checks = [
+            str(name)
+            for name in raw_required
+            if str(name) not in IGNORED_UPSTREAM_VALIDATION_CHECKS
+        ]
+
+    raw_valid = validation.get("valid")
+    if required_checks:
+        valid = all(checks.get(name) is True for name in required_checks)
+    elif isinstance(raw_valid, bool):
+        valid = raw_valid
+    return checks, required_checks, valid
+
+
 REQUIRED_RELATIVE_PATHS = (
     "metadata.json",
     "validation.json",
@@ -255,17 +293,11 @@ def inspect_clip(clip_dir: Path, dataset_root: Path) -> dict[str, Any]:
     camera_statistics: dict[str, Any] = {}
 
     if validation is not None:
-        raw_checks = validation.get("checks", {})
-        if isinstance(raw_checks, dict):
-            validation_checks = raw_checks
-        raw_required = validation.get("required_checks", [])
-        if isinstance(raw_required, list):
-            validation_required_checks = [
-                str(value) for value in raw_required
-            ]
-        raw_valid = validation.get("valid")
-        if isinstance(raw_valid, bool):
-            validation_valid = raw_valid
+        (
+            validation_checks,
+            validation_required_checks,
+            validation_valid,
+        ) = normalize_upstream_validation(validation)
         first_sim_time_ns = validation.get("first_sim_time_ns")
         last_sim_time_ns = validation.get("last_sim_time_ns")
         sim_duration_sec = validation.get("sim_duration_sec")

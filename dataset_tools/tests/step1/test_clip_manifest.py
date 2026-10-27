@@ -55,3 +55,36 @@ class BuildClipManifestPathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+
+def test_static_occupancy_checks_are_outside_dataset_eligibility():
+    from step1.clip_manifest import normalize_upstream_validation
+    checks, required, valid = normalize_upstream_validation({
+        "checks": {
+            "has_clock": True,
+            "has_filtered_static_occupancy": False,
+            "static_occupancy_scene_matches_map": False,
+        },
+        "required_checks": [
+            "has_clock",
+            "has_filtered_static_occupancy",
+            "static_occupancy_scene_matches_map",
+        ],
+        "valid": False,
+    })
+    assert checks == {"has_clock": True}
+    assert required == ["has_clock"]
+    assert valid is True
+
+
+def test_non_static_required_failure_still_rejects_validation():
+    from step1.clip_manifest import normalize_upstream_validation
+    checks, required, valid = normalize_upstream_validation({
+        "checks": {"has_clock": False},
+        "required_checks": ["has_clock"],
+        "valid": False,
+    })
+    assert checks == {"has_clock": False}
+    assert required == ["has_clock"]
+    assert valid is False

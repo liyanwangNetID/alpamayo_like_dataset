@@ -16,8 +16,8 @@ from typing import Any, Iterable, Mapping
 from project_paths import DATASET_OUTCOME_ROOT
 
 STRUCTURED_CAUSALITY_FORMAT_VERSION = "0.1-draft"
-GENERATOR_VERSION = "0.1.0"
-RULE_VERSION = "structured_causality_rules_v0.2"
+GENERATOR_VERSION = "0.2.0"
+RULE_VERSION = "structured_causality_rules_v0.3"
 
 EXPECTED_SHA256 = {
     "keyframes": "ab23cfe96037f35eef6bd3d687e01c2b8ca724403dd2306ae26f4d2480d7b841",

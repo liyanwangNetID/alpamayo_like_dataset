@@ -13,8 +13,9 @@ from .contract import (
 
 _RELATION_ORDER = {
     "aligns_with": 0,
-    "supports": 1,
-    "insufficient_evidence": 2,
+    "stage_consistent": 1,
+    "supports": 2,
+    "insufficient_evidence": 3,
 }
 
 
@@ -63,31 +64,77 @@ def _link(
     }
 
 
-def _navigation_link(action: str, quality: str, lateral: str) -> tuple[str, str, str, list[str]]:
-    if quality != "usable" or action == "unknown" or lateral == "unknown":
+def _navigation_link(
+    navigation: Mapping[str, Any],
+    lateral_data: Mapping[str, Any],
+    road_context: Mapping[str, Any],
+) -> tuple[str, str, str, list[str]]:
+    """Relate route intent to current lateral execution without overclaiming.
+
+    Navigation denotes route intent, while the lateral label denotes execution
+    within the frozen future-action horizon. Strong links are emitted only for
+    direct same-stage agreement or for an explicitly evidenced pre-turn stage.
+    """
+    action = str(navigation.get("action", "unknown"))
+    navigation_quality = _quality(navigation.get("quality_status"))
+    lateral = str(lateral_data.get("action", "unknown"))
+    lateral_quality = _quality(lateral_data.get("quality_status"))
+
+    if (
+        navigation_quality != "usable"
+        or lateral_quality != "usable"
+        or action == "unknown"
+        or lateral == "unknown"
+    ):
         return (
             "insufficient_evidence",
             "unknown",
-            "navigation_lateral_evidence_insufficient_v01",
-            ["navigation_or_lateral_decision_unknown"],
+            "navigation_lateral_evidence_insufficient_v02",
+            ["navigation_or_lateral_decision_not_usable"],
         )
-    aligned = (
-        (action == "straight" and lateral in {"keep_direction", "change_lane_left", "change_lane_right"})
-        or (action == "left" and lateral in {"keep_direction", "turn_left"})
-        or (action == "right" and lateral in {"keep_direction", "turn_right", "change_lane_right"})
-    )
-    if aligned:
+
+    direct_alignment = {
+        ("straight", "keep_direction"),
+        ("left", "turn_left"),
+        ("right", "turn_right"),
+    }
+    if (action, lateral) in direct_alignment:
         return (
             "aligns_with",
             "supported",
-            "navigation_lateral_alignment_v01",
-            ["route_intent_is_compatible_with_current_lateral_action"],
+            "navigation_lateral_direct_alignment_v02",
+            ["navigation_intent_directly_matches_current_lateral_execution"],
         )
+
+    navigation_reasons = {
+        str(value) for value in navigation.get("reasons", ())
+    }
+    road_type = str(road_context.get("type", "unknown"))
+    road_quality = _quality(road_context.get("quality_status"))
+    upcoming_turn = (
+        action in {"left", "right"}
+        and lateral == "keep_direction"
+        and road_type == "intersection_approach"
+        and road_quality == "usable"
+        and "upcoming_intersection_detected" in navigation_reasons
+    )
+    if upcoming_turn:
+        return (
+            "stage_consistent",
+            "supported",
+            "upcoming_navigation_precedes_lateral_execution_v01",
+            [
+                f"navigation_describes_upcoming_{action}_turn",
+                "current_lateral_action_is_pre_turn_keep_direction",
+                "turn_execution_not_observed_in_current_action_window",
+            ],
+        )
+
     return (
         "insufficient_evidence",
-        "weak",
-        "navigation_action_stage_uncertain_v01",
-        ["route_intent_and_current_action_may_represent_different_execution_stages"],
+        "unknown",
+        "navigation_lateral_stage_or_semantics_insufficient_v02",
+        ["navigation_intent_does_not_directly_support_current_lateral_action"],
     )
 
 
@@ -169,7 +216,9 @@ def build_structured_causality(joined: JoinedAnchor) -> dict[str, Any]:
     links: list[dict[str, Any]] = []
 
     relation, confidence, rule_id, reasons = _navigation_link(
-        navigation_action, navigation_quality, lateral
+        navigation,
+        lateral_data,
+        _mapping(scene.get("road_context")),
     )
     links.append(_link("link_navigation_lateral", "navigation_intent", "decision_lateral", relation, confidence, rule_id, reasons))
 

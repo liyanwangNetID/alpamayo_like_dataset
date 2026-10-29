@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Any, Mapping
 from jsonschema import Draft202012Validator
 
-REASONING_FORMAT_VERSION = "0.1-draft"
-GENERATOR_VERSION = "0.1.0"
-PROMPT_VERSION = "step9_local_reasoning_prompt_v0.2"
+REASONING_FORMAT_VERSION = "0.2-draft"
+GENERATOR_VERSION = "0.3.0"
+PROMPT_VERSION = "step9_minimal_rewrite_prompt_v0.12"
 
 def usage_policy() -> dict[str, Any]:
     return {
@@ -37,32 +37,44 @@ def sha256_file(path: Path) -> str:
 
 def response_schema() -> dict[str, Any]:
     return {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object", "additionalProperties": False,
-        "required": ["reasoning_summary", "used_evidence_keys", "limitations"],
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["reasoning_summary"],
         "properties": {
-            "reasoning_summary": {"type": "string", "minLength": 1, "maxLength": 600},
-            "used_evidence_keys": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,95}$"}, "uniqueItems": True},
-            "limitations": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 240}, "uniqueItems": True},
+            "reasoning_summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1200,
+            },
         },
     }
 
 def output_schema() -> dict[str, Any]:
+    quality = {"type": "string", "enum": ["usable", "partial", "unknown"]}
     return {
-        "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "reasoning_schema_v0.1-draft.json",
-        "title": "AlpaSim Step 9 Reasoning v0.1-draft", "type": "object", "additionalProperties": False,
-        "required": ["reasoning_format_version", "generator_version", "prompt_version", "anchor_id", "clip_id", "anchor_ns", "reasoning_summary", "used_evidence_keys", "quality_status", "limitations", "source_record_sha256"],
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "reasoning_format_version",
+            "generator_version",
+            "prompt_version",
+            "anchor_id",
+            "clip_id",
+            "anchor_ns",
+            "reasoning_summary",
+            "quality_status",
+            "source_record_sha256",
+        ],
         "properties": {
             "reasoning_format_version": {"const": REASONING_FORMAT_VERSION},
             "generator_version": {"const": GENERATOR_VERSION},
             "prompt_version": {"const": PROMPT_VERSION},
             "anchor_id": {"type": "string", "minLength": 1},
-            "clip_id": {"type": "string", "pattern": "^test_clip_[0-9]+$"},
-            "anchor_ns": {"type": "integer", "minimum": 0},
-            "reasoning_summary": {"type": "string", "minLength": 1, "maxLength": 600},
-            "used_evidence_keys": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{2,95}$"}, "uniqueItems": True},
-            "quality_status": {"type": "string", "enum": ["usable", "partial", "unknown"]},
-            "limitations": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 240}, "uniqueItems": True},
+            "clip_id": {"type": "string", "minLength": 1},
+            "anchor_ns": {"type": "integer"},
+            "reasoning_summary": {"type": "string", "minLength": 1, "maxLength": 1200},
+            "quality_status": quality,
             "source_record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         },
     }

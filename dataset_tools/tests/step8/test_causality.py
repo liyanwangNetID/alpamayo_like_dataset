@@ -15,6 +15,9 @@ def joined(
     lead=None,
     left=None,
     right=None,
+    road_type="lane_following",
+    road_quality="usable",
+    navigation_reasons=None,
 ):
     anchor = "clip_10"
     return JoinedAnchor(
@@ -27,7 +30,11 @@ def joined(
             "clip_id": "clip",
             "anchor_ns": 10,
             "navigation_format_version": "0.1-draft",
-            "navigation": {"action": navigation, "quality_status": navigation_quality},
+            "navigation": {
+                "action": navigation,
+                "quality_status": navigation_quality,
+                "reasons": list(navigation_reasons or []),
+            },
         },
         scene_fact={
             "anchor_id": anchor,
@@ -35,11 +42,11 @@ def joined(
             "anchor_ns": 10,
             "scene_fact_format_version": "0.1-draft",
             "road_context": {
-                "type": "lane_following",
+                "type": road_type,
                 "intersection_proximity": "none",
                 "stop_line_proximity": "none",
                 "yield_line_proximity": "none",
-                "quality_status": "usable",
+                "quality_status": road_quality,
             },
             "actor_context": {
                 "lead_actors": lead or [],
@@ -159,3 +166,88 @@ def test_output_is_deterministic_for_actor_input_order():
     first = build_structured_causality(joined(lead=[actor(rank=2), actor(rank=1)]))
     second = build_structured_causality(joined(lead=[actor(rank=1), actor(rank=2)]))
     assert first == second
+
+
+def navigation_link(record):
+    return next(
+        link
+        for link in record["structured_coc"]["links"]
+        if link["source_node_id"] == "navigation_intent"
+        and link["target_node_id"] == "decision_lateral"
+    )
+
+
+def test_upcoming_left_turn_and_keep_direction_are_stage_consistent():
+    record = build_structured_causality(joined(
+        navigation="left",
+        lateral="keep_direction",
+        road_type="intersection_approach",
+        navigation_reasons=["upcoming_intersection_detected"],
+    ))
+    link = navigation_link(record)
+    assert link["relation"] == "stage_consistent"
+    assert link["confidence"] == "supported"
+    assert link["rule_id"] == "upcoming_navigation_precedes_lateral_execution_v01"
+
+
+def test_upcoming_right_turn_and_keep_direction_are_stage_consistent():
+    record = build_structured_causality(joined(
+        navigation="right",
+        lateral="keep_direction",
+        road_type="intersection_approach",
+        navigation_reasons=["upcoming_intersection_detected"],
+    ))
+    assert navigation_link(record)["relation"] == "stage_consistent"
+
+
+def test_turn_intent_and_keep_direction_without_approach_evidence_are_insufficient():
+    record = build_structured_causality(joined(
+        navigation="left",
+        lateral="keep_direction",
+        road_type="lane_following",
+        navigation_reasons=["upcoming_intersection_detected"],
+    ))
+    assert navigation_link(record)["relation"] == "insufficient_evidence"
+
+
+def test_straight_navigation_does_not_claim_support_for_lane_change():
+    record = build_structured_causality(joined(
+        navigation="straight",
+        lateral="change_lane_left",
+    ))
+    assert navigation_link(record)["relation"] == "insufficient_evidence"
+
+
+def test_right_turn_intent_does_not_claim_support_for_right_lane_change():
+    record = build_structured_causality(joined(
+        navigation="right",
+        lateral="change_lane_right",
+        road_type="intersection_approach",
+        navigation_reasons=["upcoming_intersection_detected"],
+    ))
+    assert navigation_link(record)["relation"] == "insufficient_evidence"
+
+
+def test_only_direct_same_stage_pairs_align():
+    for navigation, lateral in (
+        ("straight", "keep_direction"),
+        ("left", "turn_left"),
+        ("right", "turn_right"),
+    ):
+        record = build_structured_causality(joined(
+            navigation=navigation,
+            lateral=lateral,
+        ))
+        link = navigation_link(record)
+        assert link["relation"] == "aligns_with"
+        assert link["rule_id"] == "navigation_lateral_direct_alignment_v02"
+
+
+def test_unknown_navigation_remains_insufficient():
+    record = build_structured_causality(joined(
+        navigation="unknown",
+        navigation_quality="unknown",
+    ))
+    link = navigation_link(record)
+    assert link["relation"] == "insufficient_evidence"
+    assert link["confidence"] == "unknown"

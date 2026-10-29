@@ -122,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--anchor-id")
     parser.add_argument("--rule-id")
     parser.add_argument("--quality", choices=("usable", "partial", "unknown"))
-    parser.add_argument("--relation", choices=("aligns_with", "supports", "insufficient_evidence"))
+    parser.add_argument("--relation", choices=("aligns_with", "stage_consistent", "supports", "insufficient_evidence"))
     parser.add_argument("--actor-class")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--no-video", action="store_true")

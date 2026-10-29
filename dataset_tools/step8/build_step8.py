@@ -133,7 +133,7 @@ def structured_causality_schema() -> dict[str, Any]:
                     "link_id": {"type": "string", "pattern": "^link_[0-9]{3}$"},
                     "source_node_id": {"type": "string", "minLength": 1},
                     "target_node_id": {"type": "string", "minLength": 1},
-                    "relation": {"type": "string", "enum": ["aligns_with", "supports", "insufficient_evidence"]},
+                    "relation": {"type": "string", "enum": ["aligns_with", "stage_consistent", "supports", "insufficient_evidence"]},
                     "confidence": {"type": "string", "enum": ["supported", "weak", "unknown"]},
                     "rule_id": {"type": "string", "minLength": 1},
                     "reasons": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": True},

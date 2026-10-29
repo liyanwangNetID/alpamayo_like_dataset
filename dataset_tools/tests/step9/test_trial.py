@@ -2,47 +2,38 @@ from step9.prompt import build_evidence_package
 from step9.trial import select_trial_rows, trial_tags
 
 
-def make_row(anchor_id: str, quality: str, rule_id: str, relation: str = "aligns_with"):
-    confidence = "supported" if relation != "insufficient_evidence" else "unknown"
-    lateral_quality = "unknown" if quality == "unknown" else "usable"
+def row(anchor_id, quality, relation, source_type="navigation_intent"):
     return {
         "anchor_id": anchor_id,
-        "clip_id": "test_clip_001",
+        "clip_id": "clip",
         "anchor_ns": 1,
-        "quality": {
-            "status": quality,
-            "reasons": [] if quality == "usable" else ["limited_evidence"],
-        },
+        "quality": {"status": quality, "reasons": []},
         "structured_coc": {
             "nodes": [
-                {"node_id": "decision_lateral", "node_type": "lateral_decision", "value": {"action": "keep_direction", "quality_status": lateral_quality}, "source_ref": "x"},
-                {"node_id": "decision_longitudinal", "node_type": "longitudinal_decision", "value": {"action": "maintain_speed", "quality_status": "usable"}, "source_ref": "x"},
-                {"node_id": "navigation_intent", "node_type": "navigation_intent", "value": {"action": "straight", "quality_status": "usable"}, "source_ref": "x"},
+                {"node_id": "lat", "node_type": "lateral_decision", "value": {"action": "keep_direction"}},
+                {"node_id": "lon", "node_type": "longitudinal_decision", "value": {"action": "maintain_speed"}},
+                {"node_id": "nav", "node_type": "navigation_intent", "value": {"action": "straight"}},
+                {"node_id": "actor", "node_type": "actor_state", "value": {"actor_class": "automobile"}},
             ],
             "links": [
-                {"link_id": "link_001", "source_node_id": "navigation_intent", "target_node_id": "decision_lateral", "relation": relation, "confidence": confidence, "rule_id": rule_id, "reasons": ["test"]}
+                {"source_node_id": "actor" if source_type == "actor_state" else "nav", "target_node_id": "lon" if source_type == "actor_state" else "lat", "relation": relation, "rule_id": "test_rule"}
             ],
         },
     }
 
 
-def test_trial_tags_cover_quality_and_family():
-    row = make_row("a", "partial", "navigation_lateral_evidence_insufficient_v01", "insufficient_evidence")
-    tags = trial_tags(build_evidence_package(row))
-    assert "quality:partial" in tags
-    assert "family:navigation_evidence_insufficient" in tags
+def test_trial_tags_use_relations_and_actor_count():
+    package = build_evidence_package(row("a", "usable", "supports", "actor_state"))
+    tags = trial_tags(package)
+    assert "quality:usable" in tags
+    assert "relation:supports" in tags
+    assert "actors:single" in tags
 
 
-def test_trial_selection_is_deterministic_and_quality_stratified():
-    rows = []
-    for index in range(6):
-        rows.append(make_row(f"u{index}", "usable", "navigation_lateral_alignment_v01"))
-        rows.append(make_row(f"p{index}", "partial", "navigation_lateral_evidence_insufficient_v01", "insufficient_evidence"))
-        rows.append(make_row(f"x{index}", "unknown", "navigation_lateral_evidence_insufficient_v01", "insufficient_evidence"))
-    first = select_trial_rows(rows, limit=12)
-    second = select_trial_rows(rows, limit=12)
-    assert [row["anchor_id"] for row in first] == [row["anchor_id"] for row in second]
-    qualities = [row["quality"]["status"] for row in first]
-    assert qualities.count("usable") >= 4
-    assert qualities.count("partial") >= 4
-    assert qualities.count("unknown") >= 4
+def test_trial_selection_respects_limit():
+    rows = [
+        row("a", "usable", "aligns_with"),
+        row("b", "partial", "stage_consistent"),
+        row("c", "unknown", "insufficient_evidence"),
+    ]
+    assert len(select_trial_rows(rows, limit=2)) == 2

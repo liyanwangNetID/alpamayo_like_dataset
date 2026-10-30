@@ -16,6 +16,7 @@ from step10.contract import canonical_sha256
 from step10.schema import sample_manifest_schema
 from step11.schema import dataset_split_schema
 from step12.schema import final_audit_schema, write_schema
+from step12.human_review import audit_human_reviews
 
 SAMPLE = MANIFEST_ROOT / "sample_manifest_v0.1.jsonl"
 SAMPLE_CONTRACT = MANIFEST_ROOT / "sample_manifest_contract_v0.1.json"
@@ -26,6 +27,7 @@ STATS = REPORT_ROOT / "final_dataset_statistics_v0.1.json"
 DELIVERY = REPORT_ROOT / "final_dataset_delivery_summary_v0.1.md"
 CONTRACT = MANIFEST_ROOT / "final_dataset_contract_v0.1.json"
 SCHEMA = SCHEMA_ROOT / "final_dataset_audit_schema_v0.1-draft.json"
+REVIEW_ROOT = REPORT_ROOT / "step12_review"
 
 RARE = {
     "lateral": ("change_lane_left", "change_lane_right", "turn_left", "turn_right"),
@@ -185,6 +187,11 @@ def main() -> int:
     if missing_images or absolute_paths or finite_failures or leakage_hits or provenance_mismatches:
         errors.append({"code": "sample_content_audit_failure", "missing_images": missing_images, "absolute_paths": absolute_paths, "nonfinite_values": finite_failures, "leakage_hits": dict(leakage_hits), "provenance_mismatches": dict(provenance_mismatches)})
 
+    human_checks, human_warnings, human_errors, human_artifacts = audit_human_reviews(REVIEW_ROOT, sample_by_id)
+    checks.update(human_checks)
+    warnings.extend(human_warnings)
+    errors.extend(human_errors)
+
     statistics = {
         "statistics_version": "0.1", "record_count": len(samples), "clip_count": len(clip_splits),
         "split_counts": dict(split_counts),
@@ -193,10 +200,10 @@ def main() -> int:
     }
     status = "FAIL" if errors else "PASS_WITH_WARNINGS" if warnings else "PASS"
     write_schema(SCHEMA)
-    audit = {"audit_version": "0.1", "status": status, "record_count": len(samples), "clip_count": len(clip_splits), "checks": checks, "warnings": warnings, "errors": errors, "artifacts": {"sample_manifest": str(SAMPLE), "dataset_split": str(SPLIT), "statistics": str(STATS), "delivery_summary": str(DELIVERY)}}
+    audit = {"audit_version": "0.1", "status": status, "record_count": len(samples), "clip_count": len(clip_splits), "checks": checks, "warnings": warnings, "errors": errors, "artifacts": {"sample_manifest": str(SAMPLE), "dataset_split": str(SPLIT), "statistics": str(STATS), "delivery_summary": str(DELIVERY), "human_reviews": human_artifacts}}
     Draft202012Validator(final_audit_schema()).validate(audit)
-    delivery = f"""# Final Dataset Delivery Summary v0.1\n\n- Audit status: **{status}**\n- Samples: **{len(samples)}**\n- Clips: **{len(clip_splits)}**\n- Train / validation / test: **{split_counts['train']} / {split_counts['validation']} / {split_counts['test']}**\n- Image references: **{image_count}**, missing: **{missing_images}**\n- Ego-history points: **{history_count}**\n- Clip cross-split count: **{len(cross)}**\n- Audit warnings: **{len(warnings)}**\n- Audit errors: **{len(errors)}**\n\nStep 9 reasoning remains non-authoritative and excluded from the default training view.\n"""
-    contract = {"contract_version": "0.1", "producer_step": 12, "status": status, "record_count": len(samples), "clip_count": len(clip_splits), "sample_manifest_sha256": sha256(SAMPLE), "dataset_split_sha256": sha256(SPLIT), "audit_path": str(AUDIT), "audit_sha256": None, "statistics_path": str(STATS), "statistics_sha256": None, "delivery_summary_path": str(DELIVERY), "delivery_summary_sha256": None, "audit_schema_path": str(SCHEMA), "audit_schema_sha256": sha256(SCHEMA), "machine_audit_errors": len(errors), "machine_audit_warnings": len(warnings), "human_review_directory": str(REPORT_ROOT / "step12_review")}
+    delivery = f"""# Final Dataset Delivery Summary v0.1\n\n- Audit status: **{status}**\n- Samples: **{len(samples)}**\n- Clips: **{len(clip_splits)}**\n- Train / validation / test: **{split_counts['train']} / {split_counts['validation']} / {split_counts['test']}**\n- Image references: **{image_count}**, missing: **{missing_images}**\n- Ego-history points: **{history_count}**\n- Clip cross-split count: **{len(cross)}**\n- Audit warnings: **{len(warnings)}**\n- Audit errors: **{len(errors)}**\n- Human reviews completed / pass / warn / fail: **{human_checks['human_review_completed_count']} / {human_checks['human_review_pass_count']} / {human_checks['human_review_warning_count']} / {human_checks['human_review_fail_count']}**\n- Human reviews pending / stale: **{human_checks['human_review_pending_count']} / {human_checks['human_review_stale_count']}**\n\nStep 9 reasoning remains non-authoritative and excluded from the default training view.\n"""
+    contract = {"contract_version": "0.1", "producer_step": 12, "status": status, "record_count": len(samples), "clip_count": len(clip_splits), "sample_manifest_sha256": sha256(SAMPLE), "dataset_split_sha256": sha256(SPLIT), "audit_path": str(AUDIT), "audit_sha256": None, "statistics_path": str(STATS), "statistics_sha256": None, "delivery_summary_path": str(DELIVERY), "delivery_summary_sha256": None, "audit_schema_path": str(SCHEMA), "audit_schema_sha256": sha256(SCHEMA), "machine_audit_errors": len(errors), "machine_audit_warnings": len(warnings), "human_review_directory": str(REVIEW_ROOT), "human_review_checks": human_checks, "human_review_artifacts": human_artifacts}
     atomic_write(STATS, json.dumps(statistics, ensure_ascii=False, indent=2, sort_keys=True) + "\n", args.force)
     atomic_write(DELIVERY, delivery, args.force)
     atomic_write(AUDIT, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True) + "\n", args.force)

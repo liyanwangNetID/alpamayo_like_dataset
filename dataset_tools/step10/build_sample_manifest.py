@@ -125,6 +125,29 @@ def build_record(*, keyframe: Mapping[str, Any], candidate: Mapping[str, Any], m
         require_identity(keyframe, source, name)
     if reasoning is not None:
         require_identity(keyframe, reasoning, "reasoning")
+        expected_reasoning_fields = {
+            "reasoning_format_version",
+            "generator_version",
+            "prompt_version",
+            "anchor_id",
+            "clip_id",
+            "anchor_ns",
+            "reasoning_summary",
+            "quality_status",
+            "source_record_sha256",
+        }
+        if set(reasoning) != expected_reasoning_fields:
+            raise ValueError(
+                "reasoning: unexpected summary-only fields "
+                f"missing={sorted(expected_reasoning_fields - set(reasoning))} "
+                f"extra={sorted(set(reasoning) - expected_reasoning_fields)}"
+            )
+        if reasoning["reasoning_format_version"] != "0.2-draft":
+            raise ValueError("reasoning: unsupported reasoning_format_version")
+        if reasoning["generator_version"] != "0.3.0":
+            raise ValueError("reasoning: unsupported generator_version")
+        if reasoning["prompt_version"] != "step9_minimal_rewrite_prompt_v0.12":
+            raise ValueError("reasoning: unsupported prompt_version")
     selection = without_identity(keyframe)
     model_navigation = without_identity(navigation)
     decision = without_identity(meta_action)

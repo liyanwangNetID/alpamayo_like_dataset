@@ -32,3 +32,9 @@ def test_history_is_complete():
     value = build_history(reader, {"anchor_id": "a", "anchor_ns": 15, "ego_history_profile": "ego_history_16x10hz_v0.1"})
     assert value["point_count"] == 16
     assert len(value["points"]) == 16
+
+
+def test_builder_version_is_v020():
+    from step10.schema import BUILDER_VERSION
+
+    assert BUILDER_VERSION == "0.2.0"

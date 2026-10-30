@@ -1,35 +1,14 @@
 # AlpaSim Recorded Clip Data Format
 
-**Document status:** Updated for the frozen Step 8 codebase on 2026-09-25  
-**Scope:** Raw recorded Clip contract consumed by the dataset annotation tools.  
-**Recorder:** `src/alpasim_dataset_tools/alpasim_dataset_tools/data_batch_recorder.py`  
-**ROS 2 entry point:** `ros2 run alpasim_dataset_tools data_batch_recorder`  
-**Current format:** `dataset_format_version = "0.2-batch"`
+**Document status:** Current raw Clip contract and final dataset-consumer notes, updated 2026-10-30  
+**Scope:** Raw `test_clip_NNN` data consumed by the standalone dataset repository  
+**Current raw format:** `dataset_format_version = "0.2-batch"`
 
-## 1. Clip identity and lifecycle
+## 1. Identity and lifecycle
 
-A completed rollout is stored as `test_clip_NNN`, where `NNN` is a zero-padded positive integer. A `test_clip_NNN.tmp` directory is incomplete or invalid and must not be treated as production-ready.
+A completed rollout is `test_clip_NNN`. A `test_clip_NNN.tmp` directory is incomplete and must not be treated as production-ready. Camera streams are independent. Synchronize cameras by timestamps, never by cross-camera frame index.
 
-```text
-clip_active false to true
-  allocate number
-  create test_clip_NNN.tmp
-  start writers
-
-clip_active true to false
-  stop accepting messages
-  drain writers
-  write final JSON artifacts
-  validate
-
-validation passes
-  rename to test_clip_NNN
-
-validation fails
-  retain test_clip_NNN.tmp
-```
-
-## 2. Directory layout
+## 2. Core directory layout
 
 ```text
 test_clip_NNN/
@@ -40,11 +19,9 @@ test_clip_NNN/
 │   ├── front_tele.json
 │   ├── cross_left.json
 │   └── cross_right.json
-├── cameras/
-│   ├── front_wide/
-│   ├── front_tele/
-│   ├── cross_left/
-│   └── cross_right/
+├── cameras/<camera_name>/
+│   ├── *.jpg
+│   └── timestamps.jsonl
 ├── ego/
 │   ├── ego_state.jsonl
 │   ├── ground_truth_future.jsonl
@@ -59,65 +36,34 @@ test_clip_NNN/
 ├── route/
 │   ├── map_route.jsonl
 │   └── navigation_route_local.jsonl
-└── map/
-    └── vector_map.json
+├── map/vector_map.json
+└── static_occupancy/                 # optional
+    ├── columns.npz
+    └── metadata.json
 ```
 
-Each camera directory contains JPEG frames and `timestamps.jsonl`. Camera streams are independent and may have different counts. Synchronize by timestamp, never by cross-camera frame index.
+`static_occupancy/` is optional. A Clip without mesh-derived static occupancy remains valid for the current camera-only dataset pipeline. Collection may proceed after the USDZ asset is downloaded; it does not require mesh acknowledgement. If no mesh/static occupancy is available, the folder is not created. The current Sample Manifest does not consume static occupancy.
 
-## 3. Time representation
+## 3. Time, units, and frames
 
-Canonical dataset time is integer nanoseconds:
+Canonical simulation time is integer nanoseconds:
 
 ```text
 stamp_ns = sec * 1,000,000,000 + nanosec
 ```
 
-ROS message payloads preserve the original `sec` and `nanosec` structure. Wall-clock metadata timestamps are diagnostic only and must not be treated as simulation time.
-
-Dynamic Topic JSONL records are generally in callback-arrival order. Readers must validate monotonicity or explicitly handle duplicates according to the consuming task.
-
-## 4. Coordinates and units
-
 - Distance: metres
 - Speed: metres per second
 - Acceleration: metres per second squared
 - Angles: radians
-- Ego-local planar axes: `x` forward, `y` left
-- Positive planar yaw: counter-clockwise or left under current utilities
+- Ego-local planar axes: x forward, y left
+- Positive planar yaw: counter-clockwise/left
 
-Consumers must read declared frame fields. Do not mix map and Ego-local coordinates directly. Use the shared Step 2 coordinate utilities.
+Wall-clock lifecycle times are diagnostic only. Readers must respect declared frames and must not mix map and Ego-local values without the shared coordinate utilities.
 
-Observed frames include:
+## 4. Cameras and calibration
 
-- Ego pose: `map`, child `base_link`
-- Actor current pose: `map`
-- Navigation model-input Route: `base_link`
-- VectorMap: frame stored in `map/vector_map.json`
-
-## 5. Metadata and validation
-
-`metadata.json` records Clip number, name, format, status, camera names, recorder settings, and lifecycle wall times.
-
-`validation.json` includes:
-
-- `valid`
-- `checks`
-- `required_checks`
-- camera statistics
-- Topic counts
-- calibration status
-- first and last simulation times
-- simulation duration
-- map and GT service errors
-
-Current rename-gate requirements include all four calibrations, all four cameras with saved images, no queue drops, no encoding failures, Clock, Ego state, executed path, current Actors, model-input Navigation Route, and VectorMap.
-
-`has_complete_gt_service` is recorded but is not part of the recorder rename gate. Consumers requiring complete-recording GT must check it explicitly.
-
-## 6. Camera data
-
-Selected cameras:
+Cameras:
 
 ```text
 front_wide
@@ -126,239 +72,104 @@ cross_left
 cross_right
 ```
 
-Each JPEG filename is a per-camera frame index. Each `timestamps.jsonl` row records frame index, `stamp_ns`, frame ID, source width and height, encoding, row stride, relative image path, and JPEG byte count.
+Each timestamp row records frame index, `stamp_ns`, frame ID, dimensions, encoding, stride, relative image path, and JPEG byte count. Calibration contains F-theta intrinsics and `rig_to_camera` extrinsics. A pinhole approximation is not valid.
 
-Each camera uses an independent bounded writer queue. Queue drops or encoding failures invalidate the Clip under current recorder rules.
+Review-only alignment offsets belong to visualization tooling and never modify raw calibration or formal labels.
 
-## 7. Camera calibration
+## 5. Ego, Actor, Route, and map semantics
 
-Calibration files contain recorded F-theta intrinsics and `rig_to_camera` extrinsics. Consumers must not assume a pinhole model.
+- `ego_state.jsonl`: current Ego state and motion.
+- `ground_truth_future.jsonl`: future supervision only; never current model input.
+- `planner_output.jsonl`: not valid current Scene-Fact evidence.
+- `actors/current.jsonl`: current simulator Actor snapshots.
+- `actors/history.jsonl`: optional recorded history; Step 7 derives formal short history from current snapshots at or before the Anchor.
+- `actors/future.jsonl`: future truth; forbidden for current Scene Facts and observability.
+- `navigation_route_local.jsonl`: model-input Route in Ego-local coordinates.
+- `vector_map.json`: lanes, road edges, signs, wait lines, map bounds, and scene identifiers.
 
-Observed calibration structure includes:
+Simulator Actor truth is not automatically camera-observable. Step 7 applies the frozen observability gate. Missing Actor identity or projection must not be fabricated.
 
-- logical camera IDs
-- source resolution
-- F-theta parameters
-- principal point and polynomial coefficients
-- rig-to-camera quaternion and translation
+## 6. Leakage policy by stage
 
-Calibration may have been cached before the Clip begins and written when the recording session starts.
+- Step 3 may require future-GT availability for Anchor eligibility.
+- Step 4 may use future Ego execution for supervision labels.
+- Step 6 Navigation uses only Anchor-time-or-earlier Route, Anchor-time Ego state, and static VectorMap.
+- Step 7 Scene Facts use current/past evidence at or before the Anchor, synchronized cameras, calibration, and static VectorMap.
+- Step 8 Structured CoC combines explicit model-input evidence and supervision, without reclassifying supervision as model input.
+- Step 9 rewrites confirmed Structured CoC information for people; it is non-authoritative.
+- Step 10 embeds three camera frames, Ego history, Navigation, supervision, Structured CoC, and optional reasoning in one Sample Manifest record.
+- Step 11 groups by Clip for an exclusive 80/10/10 split.
+- Step 12 audits paths, images, finite values, provenance, leakage, split integrity, and human review.
 
-Review-only image alignment corrections, when required for human-review overlays, belong to annotation tooling. Review offsets do not change raw Clip calibration or the raw format contract.
-
-## 8. Dynamic Topic envelope
-
-Most dynamic Topic JSONL files use:
-
-```json
-{
-  "topic": "/alpasim/example",
-  "message": {}
-}
-```
-
-Camera timestamps and executed-path point rows use their own direct structures.
-
-## 9. Ego data
-
-### Ego state
-
-`ego/ego_state.jsonl` contains current pose, velocity, acceleration, yaw-related quantities, frames, and speed.
-
-### Future ground truth
-
-`ego/ground_truth_future.jsonl` is future supervision data. It may support Step 3 eligibility and Step 4 labels. It must not be used for Step 6 Navigation or Step 7 current Scene Facts.
-
-### Planner output
-
-`ego/planner_output.jsonl` is not valid evidence for current Scene Facts.
-
-### Executed path
-
-`ego/executed_path_points.jsonl` stores deduplicated points in increasing timestamp order. `ego/executed_path_final.json` stores the final complete executed path message.
-
-### Complete recording ground truth
-
-`ego/complete_recording_ground_truth.json` is optional under the recorder rename gate. Consumers must explicitly check availability.
-
-## 10. Actor data
-
-### Current Actor snapshots
-
-`actors/current.jsonl` contains a sequence of current Actor snapshots. Each Actor may include:
-
-- `track_id`
-- `label_class`
-- `is_static`
-- pose and orientation
-- dimensions
-- velocity and acceleration
-- yaw, yaw rate, and yaw acceleration
-- speed
-
-Simulator Actor truth includes Actors that may not be camera-observable. Step 7 applies an observability gate before using Actor truth in final supervision.
-
-A camera-visible object may occasionally lack a usable Actor identity or valid Actor projection at the exact Anchor. Downstream annotation must not fabricate missing Actor state.
-
-### Actor history and future
-
-`actors/history.jsonl` is optional for the frozen Step 7 design because the formal short-history stage derives a past window from `actors/current.jsonl` snapshots at or before the Anchor.
-
-`actors/future.jsonl` contains future simulator truth and must not be used to decide current Scene Facts or current observability.
-
-## 11. Route data
-
-- `route/map_route.jsonl`: map Route stream
-- `route/navigation_route_local.jsonl`: model-input Route in Ego-local coordinates
-
-Step 6 queries the latest Route available at or before the Anchor. The final model input exposes only coarse Navigation semantics and must not reveal precise future coordinates, timing, speed, or controls. Step 6 v0.1.5 conservatively emits `unknown` for a narrow unresolved-branch case with strong rightward Anchor-time Route geometry; future Ego execution and Meta-action are not generation inputs.
-
-## 12. VectorMap
-
-`map/vector_map.json` stores frame, map and scene IDs, bounds, lanes, road edges, traffic signs, and wait lines. VectorMap is required by recorder validation and is used by Steps 4, 6, and 7.
-
-Step 7 uses VectorMap conservatively for Road Context. Wait-line type is not fully propagated into final Stop-line and Yield-line semantics. A visible traffic sign is not automatically a camera-confirmed road fact.
-
-## 13. Annotation-step usage and leakage policy
-
-### Step 1
-
-Scans Clip structure and validates required raw artifacts, readability, timestamp consistency, time ranges, Route, Actors, GT availability, and VectorMap.
-
-### Step 2
-
-Provides unified reading, temporal indexing, interpolation, coordinate transforms, calibration loading, and VectorMap caching.
-
-### Step 3
-
-Uses camera and Ego history, Route availability, and future GT availability to select eligible Candidate Anchors.
-
-### Step 4
-
-Generates supervision labels and may use future Ego trajectory, executed motion, and lane topology.
-
-### Step 5
-
-Uses Candidate Anchors, Meta-actions, and Step 4 features to select Keyframes. Step 5 produces `manifests/keyframe_contract_v0.1.json`, linking the selected Keyframe file to record count and SHA-256.
-
-### Step 6
-
-Uses only Anchor-time-or-earlier Route, Anchor-time Ego state, and static VectorMap. Step 6 validates the Keyframe contract and exact Anchor coverage.
-
-### Step 7 frozen implementation
-
-Step 7 uses:
-
-- selected Keyframes
-- exact current Ego and Actor snapshots for formal current geometry
-- current and past snapshots at or before the Anchor
-- four camera calibrations and synchronized images
-- F-theta projection
-- Actor oriented 3D boxes
-- projected box and surface geometry
-- low-resolution Actor surface depth rasters
-- Actor-to-Actor Z-buffer competition
-- reviewed Actor observability
-- short-history relative motion
-- static VectorMap Road Context
-- deterministic bounded Actor-list selection
-
-Step 7 must not use Actor future, Ego future, complete-recording future trajectory, planner output, Meta-action, or future Ego behavior to decide current Actor presence, observability, motion, roles, or road facts.
-
-Final Actor lists:
+Forbidden as model input in the final dataset:
 
 ```text
-lead_actors: maximum 4
-left_nearby_actors: maximum 6
-right_nearby_actors: maximum 6
+actors/future.jsonl
+ego/ground_truth_future.jsonl
+ego/complete_recording_ground_truth.json
+ego/planner_output.jsonl
+static_occupancy/
 ```
 
-Final output:
+## 7. Final Sample Manifest consumption
+
+The final training sample uses four cameras and three exact frames per camera:
 
 ```text
-annotations/v0.1-draft/scene_facts.jsonl
+relative_time_ns = [-400000000, -200000000, 0]
 ```
 
-Frozen result:
+It also embeds 16 Ego-history points at 10 Hz over 1.5 seconds. Image paths remain relative to `/home/lab/data_from_alpasim`. The final audit verified 22368 image references with zero missing, absolute, or escaping paths.
+
+Training should read:
 
 ```text
-rows: 3500
-Schema validation errors: 0
-Role conflicts: 0
-SHA-256: 7b50f955058bbb159075b26a925bf5efc7aef15df189e11b649de63d8aa59fd8
+/home/lab/alpamayo_like_dataset/outcome/manifests/sample_manifest_v0.1.jsonl
+/home/lab/alpamayo_like_dataset/outcome/manifests/dataset_split_v0.1.jsonl
 ```
 
-The earlier standalone Step 7E geometric evidence products are historical development artifacts. Current development must consume the unified frozen Step 7 outputs rather than resume old standalone exporters.
+and resolve image paths against:
 
-### Step 8
-Step 8 joins frozen Keyframes, Meta-actions, Navigation, and Scene Facts using exact Anchor identity. It validates frozen hashes and produces `annotations/v0.1-draft/structured_causality.jsonl`. Step 8 distinguishes model-input evidence from supervision-only evidence, records explicit evidence references, and never fabricates missing raw data.
+```text
+/home/lab/data_from_alpasim
+```
 
-Frozen Step 8 relations are `aligns_with`, `supports`, and `insufficient_evidence`. Only path-relevant Lead Actors participate in Actor support rules; Side Actors remain in Scene Facts unless target-lane causal evidence exists. Step 8 does not consume Actor future, Ego future, planner output, or complete-recording future data directly. Meta-action remains supervision, not model input.
+Training should not join the Step 4-9 JSONL files.
 
-### Step 9
-Step 9 will generate short causal reasoning from the frozen Step 8 Structured CoC. Step 9 must remain grounded in Step 8 nodes, links, quality, and evidence references and must not invent raw observations.
-
-## 14. Reader compatibility requirements
+## 8. Reader compatibility requirements
 
 A compatible reader must:
 
-- validate `metadata.json` and format version
-- reject or separately classify `.tmp` Clips
-- use camera timestamp indexes
-- not assume equal camera counts
-- support exact-time preference and bounded-tolerance fallback
-- validate timestamps
-- distinguish Topic envelopes from direct row formats
-- respect frame declarations
-- cache large files when appropriate
-- never fabricate missing data
+- validate `metadata.json` and supported format versions;
+- reject or separately classify `.tmp` Clips;
+- distinguish topic envelopes from direct rows;
+- validate timestamp order and duplicates;
+- use camera timestamp indexes;
+- prefer exact-time matches and use bounded fallback only where the consuming contract allows it;
+- respect frame declarations;
+- support optional `static_occupancy/` without requiring it;
+- never fabricate missing data.
 
-## 15. Format evolution
+## 9. Format evolution
 
-Do not silently change the raw Clip schema. If directory names, file names, row envelopes, meanings, time semantics, frame semantics, or validation rules change:
+Do not silently change raw directory names, file names, row envelopes, time meaning, coordinate meaning, or validation semantics. A raw-format change requires a new `dataset_format_version`, reader changes, Step 1 validation changes, tests, and a compatibility statement.
 
-- increment `dataset_format_version`
-- update this document
-- update Step 2 reader compatibility
-- update Step 1 Manifest validation
-- add synthetic and real-data tests
-- state whether old Clips remain supported
+Annotation versions, output-root changes, Sample Manifest changes, and review overlays do not by themselves change the raw Clip format.
 
-Changes to annotation code, artifact output roots, or review overlays alone do not change the raw Clip format.
-
-## 16. Current related code
-
-Recorder:
+## 10. Related code and documents
 
 ```text
-src/alpasim_dataset_tools/alpasim_dataset_tools/data_batch_recorder.py
+/home/lab/alpamayo_like_dataset/dataset_tools/project_paths.py
+/home/lab/alpamayo_like_dataset/dataset_tools/step2/
+/home/lab/alpamayo_like_dataset/dataset_tools/step7/
+/home/lab/alpamayo_like_dataset/dataset_tools/step10/
+/home/lab/alpamayo_like_dataset/dataset_tools/step11/
+/home/lab/alpamayo_like_dataset/dataset_tools/step12/
 ```
 
-Shared reader and path code:
+Primary handoff: `AI_DATASET_DEVELOPMENT_HANDOFF.md`  
+Scene-Fact contract: `SCENE_FACT_DESIGN.md`
 
-```text
-dataset_tools/project_paths.py
-dataset_tools/step2/clip_reader.py
-dataset_tools/step2/temporal_index.py
-dataset_tools/step2/coordinate_utils.py
-dataset_tools/step2/vector_map_reader.py
-```
+## 11. Source-of-truth note
 
-Frozen Step 7 raw-data consumers and geometry:
-
-```text
-dataset_tools/step7/
-dataset_tools/tests/step7/
-```
-
-Frozen Step 8 causality tools:
-```text
-dataset_tools/step8/
-dataset_tools/tests/step8/
-```
-
-Primary project handoff:
-
-```text
-docs/AI_DATASET_DEVELOPMENT_HANDOFF.md
-```
+This document explains the raw Clip contract. It does not override the final Sample Manifest, split, or audit contracts. Historical backup reports are non-authoritative. For training membership and delivery status, follow `AI_DATASET_DEVELOPMENT_HANDOFF.md` and the final JSON contracts under `outcome/manifests/`.

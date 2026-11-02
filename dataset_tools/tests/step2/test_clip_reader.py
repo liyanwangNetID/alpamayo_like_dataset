@@ -393,6 +393,28 @@ class SyntheticClipReaderTests(unittest.TestCase):
         self.assertFalse(result.usable)
         self.assertFalse(result.checks["ego_history"])
 
+    def test_ego_history_uses_pose_time_dynamics_when_reported_values_are_frozen(self) -> None:
+            executed_path = self.clip / "ego" / "executed_path_points.jsonl"
+            rows = []
+            for index in range(51):
+                timestamp = index * 100_000_000
+                rows.append({
+                    "stamp": stamp(timestamp),
+                    "pose": pose(index * 0.2, 0.0, 0.0),
+                    "linear_acceleration": {"x": 0.0, "y": 0.0, "z": 0.0},
+                    "speed": 0.0,
+                    "yaw_rate": 0.0,
+                })
+            write_jsonl(executed_path, rows)
+            reader = DrivingClipReader(self.clip)
+            history = reader.get_ego_history(2 * NS)
+            self.assertIsNotNone(history)
+            assert history is not None
+            self.assertTrue(all(abs(point.speed - 2.0) < 1e-9 for point in history))
+            self.assertTrue(
+                all(abs(point.longitudinal_acceleration) < 1e-9 for point in history)
+            )
+
 
 class RealClipSmokeTest(unittest.TestCase):
     def test_real_clip_001(self) -> None:
@@ -413,3 +435,4 @@ class RealClipSmokeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

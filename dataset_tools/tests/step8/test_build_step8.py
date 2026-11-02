@@ -126,3 +126,7 @@ def test_output_paths_follow_data_root(tmp_path):
     assert value["schema"] == tmp_path / "schemas" / "structured_causality_schema_v0.1-draft.json"
     assert value["summary"] == tmp_path / "reports" / "step8_structured_causality_summary_v01.json"
     assert value["contract"] == tmp_path / "manifests" / "structured_causality_contract_v0.1.json"
+
+def test_schema_allows_road_context_node_type():
+    enum = structured_causality_schema()["$defs"]["node"]["properties"]["node_type"]["enum"]
+    assert "road_context" in enum

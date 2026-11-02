@@ -8,5 +8,5 @@ def test_stage_consistent_is_in_schema():
 
 
 def test_step8_semantic_versions_are_upgraded():
-    assert GENERATOR_VERSION == "0.2.0"
-    assert RULE_VERSION == "structured_causality_rules_v0.3"
+    assert GENERATOR_VERSION == "0.3.0"
+    assert RULE_VERSION == "structured_causality_rules_v0.4"

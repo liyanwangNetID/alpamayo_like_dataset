@@ -16,14 +16,14 @@ from typing import Any, Iterable, Mapping
 from project_paths import DATASET_OUTCOME_ROOT
 
 STRUCTURED_CAUSALITY_FORMAT_VERSION = "0.1-draft"
-GENERATOR_VERSION = "0.2.0"
-RULE_VERSION = "structured_causality_rules_v0.3"
+GENERATOR_VERSION = "0.3.0"
+RULE_VERSION = "structured_causality_rules_v0.4"
 
 EXPECTED_SHA256 = {
     "keyframes": "ab23cfe96037f35eef6bd3d687e01c2b8ca724403dd2306ae26f4d2480d7b841",
     "meta_actions": "4c95d382ae94534953ae250cdd4331c3fe538583222f5a89b4623a51c9aaa42b",
     "navigation": "6a8754e20d0e261b716326d49987570e35255661e44388d10b8e31780ee9229f",
-    "scene_facts": "d9f1c772d1538b33153a06af492f3afe873255d57bf8a9606698e98cad3586bc",
+    "scene_facts": "3d844c16f302b3529b196de5524ffbd86717718a63e7513df92d04126c4c3ad3",
 }
 
 

@@ -98,6 +98,14 @@ def llm_situation_payload(package: Mapping[str, Any]) -> dict[str, list[str]]:
         source = _mapping(link.get("source"))
         if relation == "stage_consistent" and navigation in {"left", "right"}:
             facts.append("The upcoming turn has not started yet.")
+        if relation == "supports" and source_type == "road_context":
+            road_type = str(source.get("type", "unknown"))
+            proximity = str(source.get("intersection_proximity", "unknown"))
+            if road_type == "intersection_approach" or proximity in {"approaching", "near"}:
+                facts.append("The vehicle is approaching an intersection.")
+            elif road_type == "intersection" or proximity == "at":
+                facts.append("The vehicle is at an intersection.")
+            continue
         if relation != "supports" or source_type != "actor_state":
             continue
 

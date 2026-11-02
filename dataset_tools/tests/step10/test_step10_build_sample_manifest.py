@@ -34,7 +34,7 @@ def test_history_is_complete():
     assert len(value["points"]) == 16
 
 
-def test_builder_version_is_v020():
+def test_builder_version_is_v021():
     from step10.schema import BUILDER_VERSION
 
-    assert BUILDER_VERSION == "0.2.0"
+    assert BUILDER_VERSION == "0.2.1"

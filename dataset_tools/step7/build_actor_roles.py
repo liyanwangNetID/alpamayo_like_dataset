@@ -115,23 +115,6 @@ def main():
             actors = reader.get_actors_at(anchor_ns)
             if ego is None or ego.stamp_ns != anchor_ns or actors is None or actors.stamp_ns != anchor_ns:
                 raise RuntimeError(f"exact current data unavailable: {anchor_id}")
-            geometry_rows = []
-            for feature in compute_snapshot_actor_geometries(
-                actors.message,
-                recorded_ego_message=ego.message,
-            ):
-                geometry_rows.append({
-                    "anchor_id": anchor_id,
-                    "track_id": feature.track_id,
-                    "label_class": feature.actor_class,
-                    **feature.to_dict(),
-                })
-            candidates = join_actor_role_inputs(
-                geometry_rows=geometry_rows,
-                visibility_rows=visibility_by_anchor.get(anchor_id, ()),
-                history_rows=history_by_anchor.get(anchor_id, ()),
-                road_rows=road_by_anchor.get(anchor_id, ()),
-            )
             ego_history = None
             for waypoint_count in (31, 21, 11, 6, 2):
                 candidate_history = reader.get_ego_history(
@@ -164,7 +147,28 @@ def main():
                 executed_speed_mps,
                 pose_speed_mps,
             )
-            roles = select_actor_roles(candidates=candidates, reference_ego_speed_mps=reference_ego_speed_mps)
+            geometry_rows = []
+            for feature in compute_snapshot_actor_geometries(
+                actors.message,
+                recorded_ego_message=ego.message,
+                ego_speed_mps=reference_ego_speed_mps,
+            ):
+                geometry_rows.append({
+                    "anchor_id": anchor_id,
+                    "track_id": feature.track_id,
+                    "label_class": feature.actor_class,
+                    **feature.to_dict(),
+                })
+            candidates = join_actor_role_inputs(
+                geometry_rows=geometry_rows,
+                visibility_rows=visibility_by_anchor.get(anchor_id, ()),
+                history_rows=history_by_anchor.get(anchor_id, ()),
+                road_rows=road_by_anchor.get(anchor_id, ()),
+            )
+            roles = select_actor_roles(
+                candidates=candidates,
+                reference_ego_speed_mps=reference_ego_speed_mps,
+            )
             assignment_count += sum(len(roles[key]) for key in ("lead_actors", "left_nearby_actors", "right_nearby_actors"))
             row = {
                 "schema_version": "step7h-actor-role-selection-v02",

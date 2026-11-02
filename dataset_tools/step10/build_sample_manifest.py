@@ -146,7 +146,7 @@ def build_record(*, keyframe: Mapping[str, Any], candidate: Mapping[str, Any], m
             raise ValueError("reasoning: unsupported reasoning_format_version")
         if reasoning["generator_version"] != "0.3.0":
             raise ValueError("reasoning: unsupported generator_version")
-        if reasoning["prompt_version"] != "step9_minimal_rewrite_prompt_v0.12":
+        if reasoning["prompt_version"] != "step9_minimal_rewrite_prompt_v0.13":
             raise ValueError("reasoning: unsupported prompt_version")
     selection = without_identity(keyframe)
     model_navigation = without_identity(navigation)

@@ -8,7 +8,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 
 FORMAT_VERSION = "0.1-draft"
-BUILDER_VERSION = "0.2.0"
+BUILDER_VERSION = "0.2.1"
 CAMERA_NAMES = ("front_wide", "front_tele", "cross_left", "cross_right")
 FRAME_OFFSETS_NS = (-400_000_000, -200_000_000, 0)
 
@@ -48,7 +48,7 @@ def sample_manifest_schema() -> dict[str, Any]:
         "properties": {
             "reasoning_format_version": {"const": "0.2-draft"},
             "generator_version": {"const": "0.3.0"},
-            "prompt_version": {"const": "step9_minimal_rewrite_prompt_v0.12"},
+            "prompt_version": {"const": "step9_minimal_rewrite_prompt_v0.13"},
             "reasoning_summary": {"type": "string", "minLength": 1, "maxLength": 1200},
             "quality_status": {"type": "string", "enum": ["usable", "partial", "unknown"]},
             "source_record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

@@ -210,12 +210,15 @@ def test_turn_intent_and_keep_direction_without_approach_evidence_are_insufficie
     assert navigation_link(record)["relation"] == "insufficient_evidence"
 
 
-def test_straight_navigation_does_not_claim_support_for_lane_change():
+def test_straight_navigation_is_stage_consistent_with_lane_change():
     record = build_structured_causality(joined(
         navigation="straight",
         lateral="change_lane_left",
     ))
-    assert navigation_link(record)["relation"] == "insufficient_evidence"
+    link = navigation_link(record)
+    assert link["relation"] == "stage_consistent"
+    assert link["confidence"] == "supported"
+    assert link["rule_id"] == "straight_navigation_allows_lane_change_v01"
 
 
 def test_right_turn_intent_does_not_claim_support_for_right_lane_change():
@@ -251,3 +254,36 @@ def test_unknown_navigation_remains_insufficient():
     link = navigation_link(record)
     assert link["relation"] == "insufficient_evidence"
     assert link["confidence"] == "unknown"
+
+def test_only_primary_rank_one_lead_actor_is_linked():
+    record = build_structured_causality(joined(lead=[actor(rank=2), actor(rank=1)]))
+    actor_nodes = [node for node in record["structured_coc"]["nodes"] if node["node_type"] == "actor_state"]
+    assert [node["node_id"] for node in actor_nodes] == ["actor_lead_1"]
+
+
+def test_does_not_fall_back_to_rank_two_when_rank_one_is_ineligible():
+    record = build_structured_causality(joined(lead=[actor(rank=1, distance="far"), actor(rank=2, distance="near")]))
+    assert all(node["node_type"] != "actor_state" for node in record["structured_coc"]["nodes"])
+
+
+def test_wait_line_intersection_strongly_supports_stop():
+    value = joined(longitudinal="stop", road_type="intersection_approach")
+    value.scene_fact["road_context"].update({"intersection_proximity": "approaching", "reasons": ["wait_line"]})
+    record = build_structured_causality(value)
+    link = next(item for item in record["structured_coc"]["links"] if item["source_node_id"] == "road_context")
+    assert link["relation"] == "supports"
+    assert link["confidence"] == "supported"
+
+
+def test_general_intersection_context_weakly_supports_deceleration():
+    value = joined(longitudinal="decelerate", road_type="intersection_approach")
+    value.scene_fact["road_context"].update({"intersection_proximity": "near", "reasons": ["multiple_successors"]})
+    record = build_structured_causality(value)
+    link = next(item for item in record["structured_coc"]["links"] if item["source_node_id"] == "road_context")
+    assert link["confidence"] == "weak"
+
+
+def test_unexplained_deceleration_is_partial_even_with_lateral_alignment():
+    record = build_structured_causality(joined(longitudinal="decelerate"))
+    assert record["quality"]["status"] == "partial"
+    assert "longitudinal_decision_without_supported_context" in record["quality"]["reasons"]

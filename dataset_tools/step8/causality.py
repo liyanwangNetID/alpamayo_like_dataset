@@ -106,11 +106,24 @@ def _navigation_link(
             ["navigation_intent_directly_matches_current_lateral_execution"],
         )
 
+    road_type = str(road_context.get("type", "unknown"))
+    road_quality = _quality(road_context.get("quality_status"))
+    if (
+        action == "straight"
+        and lateral in {"change_lane_left", "change_lane_right"}
+        and road_type == "lane_following"
+        and road_quality == "usable"
+    ):
+        return (
+            "stage_consistent",
+            "supported",
+            "straight_navigation_allows_lane_change_v01",
+            ["route_level_straight_intent_is_compatible_with_lane_level_change"],
+        )
+
     navigation_reasons = {
         str(value) for value in navigation.get("reasons", ())
     }
-    road_type = str(road_context.get("type", "unknown"))
-    road_quality = _quality(road_context.get("quality_status"))
     upcoming_turn = (
         action in {"left", "right"}
         and lateral == "keep_direction"
@@ -135,6 +148,36 @@ def _navigation_link(
         "unknown",
         "navigation_lateral_stage_or_semantics_insufficient_v02",
         ["navigation_intent_does_not_directly_support_current_lateral_action"],
+    )
+
+
+def _road_relation(
+    road_context: Mapping[str, Any],
+    longitudinal: str,
+) -> tuple[str, str, str, list[str]] | None:
+    if longitudinal not in {"decelerate", "stop"}:
+        return None
+    if _quality(road_context.get("quality_status")) != "usable":
+        return None
+    road_type = str(road_context.get("type", "unknown"))
+    proximity = str(road_context.get("intersection_proximity", "unknown"))
+    if road_type not in {"intersection_approach", "intersection"}:
+        return None
+    if proximity not in {"approaching", "near", "at"}:
+        return None
+    reasons = {str(value) for value in road_context.get("reasons", ())}
+    if "wait_line" in reasons:
+        return (
+            "supports",
+            "supported",
+            "wait_line_intersection_supports_longitudinal_response_v01",
+            ["usable_wait_line_context_is_consistent_with_longitudinal_response"],
+        )
+    return (
+        "supports",
+        "weak",
+        "intersection_context_supports_longitudinal_response_v01",
+        ["usable_intersection_context_is_consistent_with_longitudinal_response"],
     )
 
 
@@ -222,47 +265,66 @@ def build_structured_causality(joined: JoinedAnchor) -> dict[str, Any]:
     )
     links.append(_link("link_navigation_lateral", "navigation_intent", "decision_lateral", relation, confidence, rule_id, reasons))
 
-    list_specs = (
-        ("lead_actors", "lead"),
-        ("left_nearby_actors", "left"),
-        ("right_nearby_actors", "right"),
-    )
-    for list_name, role in list_specs:
-        actors = actor_context.get(list_name, [])
-        if not isinstance(actors, list):
-            continue
-        for actor in actors:
-            if not isinstance(actor, Mapping):
-                continue
-            rank = actor.get("role_rank")
-            node_id = f"actor_{role}_{rank}"
-            relation_data = (
-                _lead_relation(actor, longitudinal)
-                if role == "lead"
-                else _side_relation(actor, lateral, role)
-            )
-            if relation_data is None:
-                continue
-            nodes.append(
-                _node(
-                    node_id,
-                    "actor_state",
-                    {
-                        "actor_ref": _actor_ref(actor, role),
-                        "actor_class": actor.get("actor_class"),
-                        "relative_position": actor.get("relative_position"),
-                        "relative_distance": actor.get("relative_distance"),
-                        "distance_trend": actor.get("distance_trend"),
-                        "relative_speed_category": actor.get("relative_speed_category"),
-                        "lane_direction_relation": actor.get("lane_direction_relation", "unknown"),
-                        "quality_status": _quality(actor.get("quality_status")),
-                    },
-                    "scene_facts.jsonl",
-                )
-            )
+    road_context = _mapping(scene.get("road_context"))
+    road_relation = _road_relation(road_context, longitudinal)
+    if road_relation is not None:
+        nodes.append(_node(
+            "road_context",
+            "road_context",
+            {
+                "type": road_context.get("type", "unknown"),
+                "intersection_proximity": road_context.get("intersection_proximity", "unknown"),
+                "stop_line_proximity": road_context.get("stop_line_proximity", "unknown"),
+                "yield_line_proximity": road_context.get("yield_line_proximity", "unknown"),
+                "reasons": list(road_context.get("reasons", ())),
+                "quality_status": _quality(road_context.get("quality_status")),
+            },
+            "scene_facts.jsonl",
+        ))
+        rel, conf, rule, why = road_relation
+        links.append(_link(
+            "link_road_context_decision_longitudinal",
+            "road_context",
+            "decision_longitudinal",
+            rel, conf, rule, why,
+        ))
+
+    lead_actors = actor_context.get("lead_actors", [])
+    primary_lead = None
+    if isinstance(lead_actors, list):
+        primary_lead = next(
+            (
+                actor for actor in lead_actors
+                if isinstance(actor, Mapping) and actor.get("role_rank") == 1
+            ),
+            None,
+        )
+    if primary_lead is not None:
+        relation_data = _lead_relation(primary_lead, longitudinal)
+        if relation_data is not None:
+            node_id = "actor_lead_1"
+            nodes.append(_node(
+                node_id,
+                "actor_state",
+                {
+                    "actor_ref": _actor_ref(primary_lead, "lead"),
+                    "actor_class": primary_lead.get("actor_class"),
+                    "relative_position": primary_lead.get("relative_position"),
+                    "relative_distance": primary_lead.get("relative_distance"),
+                    "distance_trend": primary_lead.get("distance_trend"),
+                    "relative_speed_category": primary_lead.get("relative_speed_category"),
+                    "lane_direction_relation": primary_lead.get("lane_direction_relation", "unknown"),
+                    "quality_status": _quality(primary_lead.get("quality_status")),
+                },
+                "scene_facts.jsonl",
+            ))
             rel, conf, rule, why = relation_data
-            target = "decision_longitudinal" if role == "lead" else "decision_lateral"
-            links.append(_link(f"link_{node_id}_{target}", node_id, target, rel, conf, rule, why))
+            links.append(_link(
+                f"link_{node_id}_decision_longitudinal",
+                node_id,
+                "decision_longitudinal",
+                rel, conf, rule, why,
+            ))
 
     nodes.sort(key=lambda item: item["node_id"])
     links.sort(
@@ -277,6 +339,29 @@ def build_structured_causality(joined: JoinedAnchor) -> dict[str, Any]:
         link["link_id"] = f"link_{index:03d}"
 
     supported = any(link["confidence"] == "supported" for link in links)
+    lateral_covered = any(
+        link["target_node_id"] == "decision_lateral"
+        and link["confidence"] in {"supported", "weak"}
+        for link in links
+    )
+    longitudinal_covered = any(
+        link["target_node_id"] == "decision_longitudinal"
+        and link["confidence"] in {"supported", "weak"}
+        for link in links
+    )
+    coverage_reasons = []
+    if (
+        _quality(lateral_data.get("quality_status")) == "usable"
+        and lateral not in {"unknown", "keep_direction"}
+        and not lateral_covered
+    ):
+        coverage_reasons.append("lateral_decision_without_supported_context")
+    if (
+        _quality(longitudinal_data.get("quality_status")) == "usable"
+        and longitudinal in {"decelerate", "stop"}
+        and not longitudinal_covered
+    ):
+        coverage_reasons.append("longitudinal_decision_without_supported_context")
     unknown_sources = []
     if meta_quality != "usable":
         unknown_sources.append("meta_action")
@@ -286,7 +371,7 @@ def build_structured_causality(joined: JoinedAnchor) -> dict[str, Any]:
         unknown_sources.append("scene_facts")
     if meta_quality != "usable":
         status = "unknown"
-    elif unknown_sources or not supported:
+    elif unknown_sources or not supported or coverage_reasons:
         status = "partial"
     else:
         status = "usable"
@@ -312,7 +397,8 @@ def build_structured_causality(joined: JoinedAnchor) -> dict[str, Any]:
                 "meta_action": meta_quality,
             },
             "reasons": [f"{name}_quality_unknown" for name in unknown_sources]
-            + ([] if supported else ["no_supported_causal_link"]),
+            + ([] if supported else ["no_supported_causal_link"])
+            + coverage_reasons,
         },
         "source_versions": {
             "navigation_format_version": joined.navigation.get("navigation_format_version"),

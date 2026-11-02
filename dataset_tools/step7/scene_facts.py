@@ -131,10 +131,22 @@ def compute_actor_geometry(actor: Mapping[str, Any], *, anchor_ego_pose: Pose2D,
     planar_distance = math.hypot(relative_pose.relative_x, relative_pose.relative_y)
     return ActorGeometry(track_id=track_id, actor_class=actor_class, is_static=is_static, relative_x_m=relative_pose.relative_x, relative_y_m=relative_pose.relative_y, planar_distance_m=planar_distance, longitudinal_distance_m=relative_pose.relative_x, lateral_distance_m=relative_pose.relative_y, relative_yaw_rad=relative_pose.relative_yaw, ego_speed_mps=ego_speed, actor_speed_mps=actor_speed, actor_velocity_x_mps=actor_velocity.x, actor_velocity_y_mps=actor_velocity.y, relative_velocity_x_mps=relative_velocity_x, relative_velocity_y_mps=relative_velocity_y, relative_longitudinal_speed_mps=relative_velocity_x, relative_lateral_speed_mps=relative_velocity_y, geometric_region=classify_geometric_region(relative_pose.relative_x, relative_pose.relative_y, longitudinal_deadband_m=longitudinal_deadband_m, lateral_deadband_m=lateral_deadband_m))
 
-def compute_snapshot_actor_geometries(actor_snapshot_message: Mapping[str, Any], *, recorded_ego_message: Mapping[str, Any], longitudinal_deadband_m: float=0.5, lateral_deadband_m: float=0.5) -> tuple[ActorGeometry, ...]:
-    """Compute geometry for every Actor in one current snapshot."""
+def compute_snapshot_actor_geometries(
+    actor_snapshot_message: Mapping[str, Any],
+    *,
+    recorded_ego_message: Mapping[str, Any],
+    ego_speed_mps: float | None = None,
+    longitudinal_deadband_m: float = 0.5,
+    lateral_deadband_m: float = 0.5,
+) -> tuple[ActorGeometry, ...]:
+    """Compute current Actor geometry using one explicit reliable Ego speed."""
     validate_actor_snapshot_frames(actor_snapshot_message)
-    anchor_pose, ego_speed = recorded_ego_pose_and_speed(recorded_ego_message)
+    anchor_pose, recorded_ego_speed = recorded_ego_pose_and_speed(recorded_ego_message)
+    ego_speed = (
+        recorded_ego_speed
+        if ego_speed_mps is None
+        else _finite_number(ego_speed_mps, "ego_speed_mps")
+    )
     actors = actor_snapshot_message.get('actors')
     if not isinstance(actors, list):
         raise TypeError('Actor snapshot actors must be a list')
@@ -317,7 +329,25 @@ def _final_actor(actor, cameras):
 
 def build_final_scene_fact_record(*, feature, visible_cameras_by_track_id):
     context = feature["actor_context"]
-    lists = {key: [_final_actor(actor, visible_cameras_by_track_id.get(str(actor["track_id"]))) for actor in context[key]] for key in ACTOR_LIST_KEYS}
+    reference_speed = float(context["reference_ego_speed_mps"])
+    lists = {
+        key: [
+            _final_actor(actor, visible_cameras_by_track_id.get(str(actor["track_id"])))
+            for actor in context[key]
+        ]
+        for key in ACTOR_LIST_KEYS
+    }
+    for key in ACTOR_LIST_KEYS:
+        for actor in lists[key]:
+            if not math.isclose(
+                actor["ego_speed_mps"],
+                reference_speed,
+                rel_tol=0.0,
+                abs_tol=1e-9,
+            ):
+                raise ValueError(
+                    "selected Actor ego_speed_mps must match reference_ego_speed_mps"
+                )
     return {
         "scene_fact_format_version": SCENE_FACT_FORMAT_VERSION, "generator_version": GENERATOR_VERSION, "rule_version": RULE_VERSION,
         "anchor_id": str(feature["anchor_id"]), "clip_id": str(feature["clip_id"]), "anchor_ns": int(feature["anchor_ns"]),

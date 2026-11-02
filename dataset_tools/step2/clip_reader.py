@@ -171,6 +171,67 @@ def _finite(value: Any, name: str) -> float:
     return result
 
 
+def _pose_time_point_speeds(samples: Sequence[EgoStateSample]) -> list[float]:
+    """Derive one speed per sample from pose displacement and timestamps."""
+    if len(samples) < 2:
+        raise ValueError("pose-time speed derivation requires at least two samples")
+    interval_speeds: list[float] = []
+    interval_durations: list[float] = []
+    for first, second in zip(samples, samples[1:]):
+        duration_sec = (second.stamp_ns - first.stamp_ns) / 1e9
+        if duration_sec <= 0.0:
+            raise ClipDataError("Ego history timestamps must increase")
+        distance_m = math.hypot(
+            second.pose.x - first.pose.x,
+            second.pose.y - first.pose.y,
+        )
+        interval_speeds.append(distance_m / duration_sec)
+        interval_durations.append(duration_sec)
+    result = [interval_speeds[0]]
+    for index in range(1, len(samples) - 1):
+        previous_duration = interval_durations[index - 1]
+        next_duration = interval_durations[index]
+        result.append(
+            (
+                interval_speeds[index - 1] * previous_duration
+                + interval_speeds[index] * next_duration
+            )
+            / (previous_duration + next_duration)
+        )
+    result.append(interval_speeds[-1])
+    return result
+
+
+def _point_accelerations(
+    samples: Sequence[EgoStateSample],
+    speeds: Sequence[float],
+) -> list[float]:
+    """Derive longitudinal acceleration from the pose-time speed sequence."""
+    if len(samples) != len(speeds) or len(samples) < 2:
+        raise ValueError("acceleration derivation requires matching motion samples")
+    interval_accelerations: list[float] = []
+    interval_durations: list[float] = []
+    for index in range(len(samples) - 1):
+        duration_sec = (samples[index + 1].stamp_ns - samples[index].stamp_ns) / 1e9
+        if duration_sec <= 0.0:
+            raise ClipDataError("Ego history timestamps must increase")
+        interval_accelerations.append((speeds[index + 1] - speeds[index]) / duration_sec)
+        interval_durations.append(duration_sec)
+    result = [interval_accelerations[0]]
+    for index in range(1, len(samples) - 1):
+        previous_duration = interval_durations[index - 1]
+        next_duration = interval_durations[index]
+        result.append(
+            (
+                interval_accelerations[index - 1] * previous_duration
+                + interval_accelerations[index] * next_duration
+            )
+            / (previous_duration + next_duration)
+        )
+    result.append(interval_accelerations[-1])
+    return result
+
+
 class DrivingClipReader:
     """Unified reader for one finalized test_clip_NNN directory."""
 
@@ -361,8 +422,12 @@ class DrivingClipReader:
                 return None
             samples.append(sample)
         anchor = samples[-1]
+        pose_speeds = _pose_time_point_speeds(samples)
+        pose_accelerations = _point_accelerations(samples, pose_speeds)
         waypoints: list[EgoHistoryWaypoint] = []
-        for target_stamp, sample in zip(target_stamps, samples):
+        for target_stamp, sample, speed, acceleration in zip(
+            target_stamps, samples, pose_speeds, pose_accelerations
+        ):
             relative = map_pose_to_anchor_ego(sample.pose, anchor.pose)
             waypoints.append(
                 EgoHistoryWaypoint(
@@ -371,10 +436,8 @@ class DrivingClipReader:
                     relative_y=relative.relative_y,
                     sin_relative_yaw=math.sin(relative.relative_yaw),
                     cos_relative_yaw=math.cos(relative.relative_yaw),
-                    speed=sample.speed,
-                    longitudinal_acceleration=(
-                        sample.longitudinal_acceleration
-                    ),
+                    speed=speed,
+                    longitudinal_acceleration=acceleration,
                     yaw_rate=sample.yaw_rate,
                     relative_time=(target_stamp - anchor_ns) / 1e9,
                 )

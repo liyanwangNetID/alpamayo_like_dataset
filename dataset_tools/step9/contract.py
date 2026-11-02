@@ -7,7 +7,7 @@ from jsonschema import Draft202012Validator
 
 REASONING_FORMAT_VERSION = "0.2-draft"
 GENERATOR_VERSION = "0.3.0"
-PROMPT_VERSION = "step9_minimal_rewrite_prompt_v0.12"
+PROMPT_VERSION = "step9_minimal_rewrite_prompt_v0.13"
 
 def usage_policy() -> dict[str, Any]:
     return {

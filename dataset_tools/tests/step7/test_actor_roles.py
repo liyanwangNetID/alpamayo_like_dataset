@@ -69,3 +69,12 @@ def test_role_record_propagates_lane_direction_relation():
     )
     roles = select_actor_roles(candidates=(value,))
     assert roles["left_nearby_actors"][0]["lane_direction_relation"] == "opposing"
+
+def test_selected_actor_speed_matches_reference_speed():
+    value = candidate("lead", 10, 0, actor_speed=4.0, ego_speed=2.0)
+    roles = select_actor_roles(
+        candidates=(value,),
+        reference_ego_speed_mps=2.0,
+    )
+    assert roles["selection_context"]["reference_ego_speed_mps"] == 2.0
+    assert roles["lead_actors"][0]["ego_speed_mps"] == 2.0

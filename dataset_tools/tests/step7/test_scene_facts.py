@@ -216,3 +216,19 @@ def test_validator_accepts_minimal_valid_record(tmp_path: Path):
     validate_scene_fact_record({'x': 1}, validator=validator)
     with pytest.raises(SceneFactValidationError):
         validate_scene_fact_record({'x': 'bad'}, validator=validator)
+
+def test_snapshot_geometry_accepts_reliable_ego_speed_override():
+    snapshot = {
+        "pose_frame_id": "map",
+        "dynamics_frame_id": "map",
+        "actors": [actor(x=15.0, y=2.0, velocity_x=4.0, speed=4.0)],
+    }
+    message = SnapshotIntegrationTests.ego_message()
+    message["speed"] = 0.0
+    result = compute_snapshot_actor_geometries(
+        snapshot,
+        recorded_ego_message=message,
+        ego_speed_mps=2.0,
+    )
+    assert result[0].ego_speed_mps == pytest.approx(2.0)
+    assert result[0].relative_velocity_x_mps == pytest.approx(2.0)

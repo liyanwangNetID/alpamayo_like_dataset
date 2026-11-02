@@ -121,7 +121,7 @@ def structured_causality_schema() -> dict[str, Any]:
                 "required": ["node_id", "node_type", "value", "source_ref"],
                 "properties": {
                     "node_id": {"type": "string", "minLength": 1},
-                    "node_type": {"type": "string", "enum": ["navigation_intent", "longitudinal_decision", "lateral_decision", "actor_state"]},
+                    "node_type": {"type": "string", "enum": ["navigation_intent", "longitudinal_decision", "lateral_decision", "actor_state", "road_context"]},
                     "value": {"type": "object"},
                     "source_ref": {"type": "string", "minLength": 1},
                 },
@@ -164,6 +164,9 @@ def validate_record_invariants(record: Mapping[str, Any]) -> None:
     actor_nodes = {node["node_id"] for node in nodes if node["node_type"] == "actor_state"}
     if actor_nodes - used:
         raise ValueError(f"unlinked Actor nodes for {anchor_id}: {sorted(actor_nodes - used)}")
+    road_nodes = {node["node_id"] for node in nodes if node["node_type"] == "road_context"}
+    if road_nodes - used:
+        raise ValueError(f"unlinked Road Context nodes for {anchor_id}: {sorted(road_nodes - used)}")
 
 
 def summarize(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:

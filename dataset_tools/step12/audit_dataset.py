@@ -92,6 +92,7 @@ def main() -> int:
     leakage_hits = Counter()
     provenance_mismatches = Counter()
     finite_failures = 0
+    frozen_zero_dynamics = []
     for row in samples:
         anchor = row["anchor_id"]
         if anchor in sample_by_id:
@@ -120,6 +121,23 @@ def main() -> int:
             for value in point.values():
                 if isinstance(value, float) and not math.isfinite(value):
                     finite_failures += 1
+        trajectory_distance_m = sum(
+            math.hypot(
+                float(second["relative_x"]) - float(first["relative_x"]),
+                float(second["relative_y"]) - float(first["relative_y"]),
+            )
+            for first, second in zip(points, points[1:])
+        )
+        maximum_speed_mps = max(
+            (abs(float(point["speed"])) for point in points),
+            default=0.0,
+        )
+        if trajectory_distance_m >= 0.5 and maximum_speed_mps <= 0.05:
+            frozen_zero_dynamics.append({
+                "anchor_id": anchor,
+                "trajectory_distance_m": trajectory_distance_m,
+                "maximum_speed_mps": maximum_speed_mps,
+            })
         prov = row["provenance"]
         embedded = {
             "keyframe_record_sha256": {"anchor_id": row["anchor_id"], "clip_id": row["clip_id"], "anchor_ns": row["anchor_ns"], **row["selection"]},
@@ -176,6 +194,8 @@ def main() -> int:
         "image_reference_count": image_count, "missing_image_count": missing_images,
         "absolute_or_escaping_image_path_count": absolute_paths,
         "ego_history_point_count": history_count, "nonfinite_ego_value_count": finite_failures,
+        "moving_pose_with_zero_speed_count": len(frozen_zero_dynamics),
+        "moving_pose_with_zero_speed_examples": frozen_zero_dynamics[:20],
         "model_input_leakage_hits": dict(leakage_hits),
         "provenance_mismatch_counts": dict(provenance_mismatches),
         "clip_cross_split_count": len(cross),
@@ -184,8 +204,24 @@ def main() -> int:
         errors.append({"code": "sample_contract_hash_mismatch"})
     if not checks["split_contract_hash_valid"]:
         errors.append({"code": "split_contract_hash_mismatch"})
-    if missing_images or absolute_paths or finite_failures or leakage_hits or provenance_mismatches:
-        errors.append({"code": "sample_content_audit_failure", "missing_images": missing_images, "absolute_paths": absolute_paths, "nonfinite_values": finite_failures, "leakage_hits": dict(leakage_hits), "provenance_mismatches": dict(provenance_mismatches)})
+    if (
+        missing_images
+        or absolute_paths
+        or finite_failures
+        or leakage_hits
+        or provenance_mismatches
+        or frozen_zero_dynamics
+    ):
+        errors.append({
+            "code": "sample_content_audit_failure",
+            "missing_images": missing_images,
+            "absolute_paths": absolute_paths,
+            "nonfinite_values": finite_failures,
+            "leakage_hits": dict(leakage_hits),
+            "provenance_mismatches": dict(provenance_mismatches),
+            "moving_pose_with_zero_speed_count": len(frozen_zero_dynamics),
+            "moving_pose_with_zero_speed_examples": frozen_zero_dynamics[:20],
+        })
 
     human_checks, human_warnings, human_errors, human_artifacts = audit_human_reviews(REVIEW_ROOT, sample_by_id)
     checks.update(human_checks)

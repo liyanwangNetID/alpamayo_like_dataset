@@ -81,16 +81,24 @@ def main():
             actors = reader.get_actors_at(anchor_ns)
             if ego is None or ego.stamp_ns != anchor_ns or actors is None or actors.stamp_ns != anchor_ns:
                 raise RuntimeError(f"exact current data unavailable: {anchor}")
+            role_selection = roles[anchor]
+            reference_ego_speed_mps = float(
+                role_selection["roles"]["selection_context"][
+                    "reference_ego_speed_mps"
+                ]
+            )
             geometries = {
                 feature.track_id: {"track_id": feature.track_id, **feature.to_dict()}
                 for feature in compute_snapshot_actor_geometries(
-                    actors.message, recorded_ego_message=ego.message
+                    actors.message,
+                    recorded_ego_message=ego.message,
+                    ego_speed_mps=reference_ego_speed_mps,
                 )
             }
             row = assemble_scene_fact_feature_row(
                 keyframe=keyframe,
                 ego_road=ego_road[anchor],
-                role_selection=roles[anchor],
+                role_selection=role_selection,
                 current_geometry_by_track_id=geometries,
             )
             output.write(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")

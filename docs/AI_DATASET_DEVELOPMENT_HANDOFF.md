@@ -1,12 +1,9 @@
 # AlpaSim VLM Dataset Development Handoff
 
-**Document status:** Final Step 0-12 delivery handoff, updated 2026-10-30  
-**Audience:** A new AI assistant or developer continuing the standalone dataset repository  
-**Purpose:** These three documents are the complete minimum context for a new conversation. Read this file first, then `CLIP_DATA_FORMAT.md` and `SCENE_FACT_DESIGN.md`. Do not ask the user to repeat the project history.
+**Document status:** Current reusable Step 0-12 workflow and delivery contract  
+**Audience:** A new AI assistant or developer continuing the standalone dataset repository
 
-## 1. Final project state
-
-The Step 0 through Step 12 development route is complete and frozen:
+## 1. Development route
 
 - Step 0: Freeze schemas and versions
 - Step 1: Clip Manifest
@@ -16,309 +13,164 @@ The Step 0 through Step 12 development route is complete and frozen:
 - Step 5: Keyframes
 - Step 6: Navigation
 - Step 7: Scene Facts
-- Step 8: Structured chain of causality (Structured CoC)
+- Step 8: Structured CoC
 - Step 9: Human-readable reasoning
 - Step 10: Self-contained Sample Manifest
 - Step 11: Clip-grouped dataset split
-- Step 12: Final machine audit, statistics, and human review
+- Step 12: Final audit, statistics, and human review
 
-The authoritative delivery directory is:
+The workflow is reusable across datasets of different sizes. Do not hard-code sample counts, Clip counts, class counts, split counts, test counts, or artifact hashes in implementation guidance or these handoff documents. Read current values from formal contracts, summaries, and audit artifacts.
 
-```text
-/home/lab/alpamayo_like_dataset/outcome
-```
+## 2. Sources of truth
 
-Final status: **PASS_WITH_WARNINGS**, with **0 blocking errors** and **1 non-blocking warning**. The dataset is deliverable. Do not reopen frozen upstream steps unless a concrete downstream defect is demonstrated.
+Use this precedence when information differs:
 
-## 2. Source-of-truth precedence
+1. `outcome/manifests/final_dataset_contract_v0.1.json`
+2. `outcome/reports/final_dataset_audit_v0.1.json`
+3. Step-specific contracts under `outcome/manifests/`
+4. Formal JSON and JSONL artifacts
+5. These Markdown documents
+6. Historical backups, which are not current sources of truth
 
-When documents and generated artifacts disagree, use this order:
+The authoritative formal-output root is `/home/lab/alpamayo_like_dataset/outcome`.
 
-1. `outcome/manifests/final_dataset_contract_v0.1.json` for final delivery closure and artifact hashes.
-2. `outcome/reports/final_dataset_audit_v0.1.json` for machine and human audit status.
-3. `outcome/manifests/sample_manifest_contract_v0.1.json` and `dataset_split_contract_v0.1.json` for Step 10 and Step 11 contracts.
-4. The generated JSONL/JSON artifacts themselves.
-5. These Markdown documents as the explanatory handoff.
-
-Historical files under `outcome/reports/backups/` are not current sources of truth. A copied review Bundle is valid only when Step 12 reports it as current, completed, and non-stale.
-
-## 3. Repository and path policy
+## 3. Repository policy
 
 ```text
-Dataset repository: /home/lab/alpamayo_like_dataset
-Dataset code:       /home/lab/alpamayo_like_dataset/dataset_tools
-Raw Clip root:      /home/lab/data_from_alpasim
-Formal outcome:     /home/lab/alpamayo_like_dataset/outcome
+Repository:       /home/lab/alpamayo_like_dataset
+Dataset code:     /home/lab/alpamayo_like_dataset/dataset_tools
+Raw Clip root:    /home/lab/data_from_alpasim
+Formal artifacts: /home/lab/alpamayo_like_dataset/outcome
 ```
 
-Rules:
+- Keep raw Clips and generated artifacts separate.
+- Write formal outputs only under `outcome/`.
+- Keep `outcome/` outside Git tracking.
+- The user manages Git. Do not inspect, stage, commit, or alter Git state unless requested.
+- Dataset processing is independent of the ROS workspace.
+- Put temporary diagnostics, source bundles, and patch scripts in `~/Downloads`.
+- Run downloaded patch scripts directly from `~/Downloads` while the repository is the current working directory. Do not move patch scripts into the repository.
+- Supply downloadable modification scripts rather than asking the user to create source files manually.
+- Run the complete test suite after a coherent change.
+- Continue automatically after validation unless a user decision is required.
 
-- Raw Clips and generated artifacts are separate.
-- All formal generated artifacts go under `outcome/`.
-- `outcome/` is excluded from Git.
-- The user manages Git. Do not inspect, stage, commit, or alter Git state unless explicitly requested.
-- Dataset code is independent of the ROS workspace. Do not return to `ALPASIM_ROS2_WS` for dataset processing.
-- Machine-specific data roots are resolved through `project_paths.py` and environment configuration.
-- Do not ask the user to create scripts with heredocs or manual copy-paste. Supply downloadable scripts.
-- When supplying multiple files, include batch move/install commands.
-- Run the complete test suite directly unless a failure requires focused diagnosis.
+## 4. Self-contained training contract
 
-## 4. Frozen training sample contract
+Step 10 produces a self-contained Sample Manifest. Training reads the Sample Manifest plus raw images and uses the Step 11 split artifact. Training must not join Step 4-9 JSONL files at runtime.
 
-The final Sample Manifest is self-contained. Training reads the Sample Manifest plus raw images; it does not join Step 4-9 JSONL files at training time.
+Each record contains the configured multi-camera, multi-frame visual input, Ego history in the Anchor Ego frame, Navigation, driving-decision supervision, Scene Facts, Structured CoC, optional non-authoritative reasoning, quality, and provenance.
+
+Two training views share identical membership, primary input, supervision, and split:
+
+- `structured_only`: default; excludes Step 9 reasoning.
+- `reasoning_assisted`: experimental; reasoning is auxiliary only.
+
+Step 9 reasoning must not affect sample acceptance, action targets, membership, or split assignment.
+
+## 5. Step 2 Ego-history dynamics
+
+Some recorded Clips contain reported Ego speed, velocity, or acceleration fields that freeze at zero while Pose continues moving. A related visualization symptom is an Ego vehicle that appears stationary in RViz and later jumps forward.
+
+The unified reader therefore derives Ego-history speed from planar Pose displacement and timestamps. Longitudinal acceleration is derived from the resulting speed sequence. Zero reported speed must not be interpreted as a stationary vehicle when Pose shows motion.
+
+Required behavior:
+
+- timestamps strictly increase;
+- endpoint speed uses the adjacent interval;
+- interior speed uses adjacent intervals with time-aware weighting;
+- acceleration derives from the Pose-time speed sequence;
+- Pose, yaw, and yaw-rate handling remain unchanged;
+- non-finite values remain invalid.
+
+Step 12 blocks a history whose Pose moves materially while its speed sequence remains near zero. Exact thresholds belong to current code and tests, not this scale-agnostic document.
+
+## 6. Step 7 reliable Ego-speed propagation
+
+Step 7 computes one reliable `reference_ego_speed_mps` and propagates it consistently through Step 7H Actor-role selection, Step 7I-K Scene-Fact feature assembly, and Step 7L final Scene Facts.
+
+Every selected Actor must satisfy:
 
 ```text
-Path:    /home/lab/alpamayo_like_dataset/outcome/manifests/sample_manifest_v0.1.jsonl
-Records: 1864
-SHA-256: de7b046e70b74929137c457d584ee2e42bf68d8933ba091b66c00feac790bcb8
-Format:  0.1-draft
-Builder: 0.2.0
+actor.ego_speed_mps == actor_context.reference_ego_speed_mps
 ```
 
-Each record uses `anchor_id` as the unique sample identity. There is no duplicate `sample_id`.
+Actor-relative velocity and relative-speed categories must use the same reliable Ego speed. Step 7L rejects mismatches before formal output is written.
 
-Each sample contains:
+## 7. Step 8 Structured CoC
 
-- four cameras: `front_wide`, `front_tele`, `cross_left`, `cross_right`;
-- three exact frames per camera at `-0.4 s`, `-0.2 s`, and `0 s`;
-- 12 relative image references total;
-- 16 Ego-history points at 10 Hz over 1.5 seconds, in the Anchor Ego frame;
-- coarse Navigation input;
-- driving-decision supervision;
-- complete Scene Facts;
-- Structured CoC;
-- optional non-authoritative Step 9 reasoning;
-- quality and provenance hashes.
+Exact current generator and rule versions are read from `step8/contract.py` and the generated contract.
 
-Totals:
+Current semantic rules include:
 
-- Image references: 22368
-- Ego-history points: 29824
-- Reasoning available: 1864/1864
-- Static occupancy used by the Sample Manifest: **false**
-- Future Actor, future Ego, planner output used as model input: **false**
+- `road_context` participates as a formal node when linked to a decision.
+- Usable wait-line/intersection context may support `decelerate` or `stop`.
+- General usable intersection context may weakly support `decelerate` or `stop`.
+- Traffic-light color and brake-light state are not invented.
+- At most one eligible primary Rank-1 Lead Actor explains a longitudinal response.
+- Rank 2 or Rank 3 is not a fallback when Rank 1 is ineligible.
+- Far Lead and Side Actor relations remain conservative.
+- Straight route intent may be stage-consistent with a lane-level lane change.
+- Quality distinguishes usable sources from complete decision-explanation coverage.
 
-Two training views share identical sample membership, primary model input, supervision, and split assignment:
+Current distributions are read from the generated Step 8 summary and semantic profile.
 
-- Default: `structured_only`, Step 9 reasoning excluded.
-- Experimental: `reasoning_assisted`, reasoning auxiliary only.
+## 8. Step 9 reasoning
 
-Step 9 reasoning is non-authoritative. It must not affect sample membership, action targets, acceptance, or split assignment.
+Step 9 is a non-authoritative presentation layer. Exact prompt and generator versions are read from `step9/contract.py` and the reasoning contract.
 
-## 5. Final Step 9 reasoning interface
-
-The old evidence-key/limitations format and strict Validator workflow are obsolete for the final delivery. The final record is summary-only:
+The interface is summary-only:
 
 ```text
-reasoning_format_version: 0.2-draft
-generator_version:         0.3.0
-prompt_version:            step9_minimal_rewrite_prompt_v0.12
-fields:                    reasoning_summary, quality_status, source_record_sha256
+reasoning_summary
+quality_status
+source_record_sha256
 ```
 
-The final prompt renders confirmed Structured CoC information into at most five natural sentences. Unknown facts are removed before the LLM input rather than narrated as repetitive limitations. Reasoning remains for human-readable inspection, debugging, and optional experiments.
+Unknown facts are removed before LLM input. Intersection context may be described conservatively. Signal-light color, brake-light state, and absolute causality must not be invented. Reasoning remains excluded from default training.
 
-## 6. Final dataset split
+## 9. Step 11 split
 
-```text
-Path:    /home/lab/alpamayo_like_dataset/outcome/manifests/dataset_split_v0.1.jsonl
-Records: 1864
-Clips:   728
-Seed:    11
-Group:   clip_id
-SHA-256: 5fec78f2a754161204386cbf264191611d7d58fbe28803b27e8b9843164774a3
-```
+The split is deterministic, grouped exclusively by `clip_id`, approximately follows the configured ratio policy, and prevents Clip cross-split leakage. Reasoning and static occupancy are not split inputs.
 
-Sample counts:
+Read current membership and distributions from the split contract and summary. A rare class may be absent from a split when preserving Clip integrity is preferable to manually moving Clips.
 
-- train: 1491
-- validation: 187
-- test: 186
+## 10. Step 12 audit and human review
 
-Clip counts:
+Step 12 audits contracts, schemas, images, safe paths, finite Ego-history values, Pose-motion versus speed consistency, provenance, leakage boundaries, Anchor-set closure, Clip exclusivity, and human-review freshness.
 
-- train: 587
-- validation: 75
-- test: 66
+A completed Decision uses `review_status: completed`. The six review dimensions use string values `pass`, `warn`, or `fail`. Boolean values and invented statuses such as `confirmed` are invalid. Pending, stale, invalid, or failed reviews block delivery.
 
-The split is deterministic, stratified over key dataset dimensions, and grouped exclusively by `clip_id`. `clip_cross_split_count = 0`. Reasoning and static occupancy are not split inputs.
+Current audit status, warning counts, review counts, test baseline, dataset scale, and hashes are read from the final audit and contract rather than duplicated here.
 
-## 7. Final audit and delivery closure
-
-Complete test baseline:
-
-```text
-975 passed, 8 subtests passed
-```
-
-Final machine audit:
-
-```text
-Path:    /home/lab/alpamayo_like_dataset/outcome/reports/final_dataset_audit_v0.1.json
-SHA-256: f92df2c3211dab887e8478b070013cedd0ad6418c2e9856cd68d05aa0c6f4a18
-Status:  PASS_WITH_WARNINGS
-Records: 1864
-Clips:   728
-Errors:  0
-Warnings:1
-```
-
-Verified checks include:
-
-- Sample and split counts and exact Anchor-set closure;
-- Sample Manifest and split Contract hashes;
-- JSON Schema validation;
-- 22,368 image references, zero missing images;
-- relative, non-escaping image paths;
-- 29,824 Ego-history points and zero non-finite values;
-- no forbidden model-input leakage terms;
-- embedded provenance hashes;
-- zero Clip cross-split leakage;
-- current-version human-review Bundle and Decision;
-- hashes for the review Bundle, Decision, overview image, and synchronized video.
-
-Human review:
-
-```text
-Bundles:   1
-Completed: 1
-Pass:      1
-Pending:   0
-Stale:     0
-Fail:      0
-```
-
-Non-blocking warning:
-
-- `rare_class_missing_from_split`: dimension `lateral`, class `turn_left`, global 7, split `test` count 0
-
-The rare `turn_left` absence in test is accepted because the global count is only seven and Clip integrity takes precedence over forcing class presence.
-
-Final closure files:
-
-```text
-/home/lab/alpamayo_like_dataset/outcome/reports/final_dataset_audit_v0.1.json              f92df2c3211dab887e8478b070013cedd0ad6418c2e9856cd68d05aa0c6f4a18
-/home/lab/alpamayo_like_dataset/outcome/reports/final_dataset_statistics_v0.1.json              77c5cb56c12c892c7f2e0e572612434abc69b4409f86e0f1d900be5e61988b6f
-/home/lab/alpamayo_like_dataset/outcome/reports/final_dataset_delivery_summary_v0.1.md           d9bc75fcb853216ccc540bf3bcccd79de779dee895062bf3cd45ac8662bdfb23
-/home/lab/alpamayo_like_dataset/outcome/manifests/final_dataset_contract_v0.1.json     4f646b1091f62e35ba26b5e98cfca9aac9ced9a31c3d825255480514f0c3e651
-```
-
-## 8. Current distributions in the final Sample Manifest
-
-### Driving lateral
-- `change_lane_left`: 62
-- `change_lane_right`: 56
-- `keep_direction`: 1679
-- `turn_left`: 7
-- `turn_right`: 28
-- `unknown`: 32
-
-### Driving longitudinal
-- `accelerate`: 356
-- `decelerate`: 352
-- `maintain_speed`: 856
-- `stop`: 165
-- `unknown`: 135
-
-### Navigation
-- `left`: 42
-- `right`: 59
-- `straight`: 1549
-- `unknown`: 214
-
-### Road Context
-- `intersection`: 133
-- `intersection_approach`: 582
-- `lane_following`: 1142
-- `unknown`: 7
-
-### Quality
-
-Meta-action:
-- `unknown`: 166
-- `usable`: 1698
-
-Navigation:
-- `unknown`: 214
-- `usable`: 1650
-
-Scene Facts:
-- `unknown`: 313
-- `usable`: 1551
-
-Structured CoC:
-- `partial`: 558
-- `unknown`: 166
-- `usable`: 1140
-
-Reasoning:
-- `partial`: 558
-- `unknown`: 166
-- `usable`: 1140
-
-## 9. Production entry points
+## 11. Production entry points
 
 ```bash
 cd /home/lab/alpamayo_like_dataset/dataset_tools || return
-
 python3 -m pytest -q
-python3 -m step10.build_sample_manifest --force
-python3 -m step11.build_dataset_split --force
+python3 -u -m step8.build_step8 --force
+python3 -u -m step9.run --force
+python3 -u -m step10.build_sample_manifest --force
+python3 -u -m step11.build_dataset_split --force
 python3 -u -m step12.audit_dataset --force
 ```
 
-Human review for a sample:
+Human review:
 
 ```bash
-python3 -m step12.review_sample --split test --seed 12 --force
+python3 -u -m step12.review_sample --split test --seed <seed> --force
 ```
 
-Do not rebuild Steps 10 or 11 casually: rebuilding Step 10 changes its output hash and requires rechecking Step 11 membership, the human-review Bundle, and Step 12 Contract closure.
+Any approved upstream change requires rebuilding all dependent downstream stages and re-closing Step 12.
 
-## 10. Formal output map
+## 12. New-conversation quick start
 
-```text
-outcome/
-├── annotations/v0.1-draft/
-│   ├── candidate_anchors.jsonl
-│   ├── keyframes.jsonl
-│   ├── meta_actions_v0.2.jsonl
-│   ├── navigation.jsonl
-│   ├── scene_facts.jsonl
-│   ├── structured_causality.jsonl
-│   └── reasoning.jsonl
-├── manifests/
-│   ├── sample_manifest_v0.1.jsonl
-│   ├── sample_manifest_contract_v0.1.json
-│   ├── dataset_split_v0.1.jsonl
-│   ├── dataset_split_contract_v0.1.json
-│   └── final_dataset_contract_v0.1.json
-├── reports/
-│   ├── sample_manifest_summary_v0.1.json
-│   ├── dataset_split_summary_v0.1.json
-│   ├── final_dataset_audit_v0.1.json
-│   ├── final_dataset_statistics_v0.1.json
-│   ├── final_dataset_delivery_summary_v0.1.md
-│   └── step12_review/
-├── schemas/
-│   ├── sample_manifest_schema_v0.1-draft.json
-│   ├── dataset_split_schema_v0.1-draft.json
-│   └── final_dataset_audit_schema_v0.1-draft.json
-└── backups/
-```
+1. Read the current formal contracts and audit before quoting scale, counts, versions, hashes, or delivery status.
+2. Preserve the self-contained Sample Manifest and Clip-grouped split.
+3. Keep structured-only training separate from reasoning-assisted experiments.
+4. Do not reopen frozen semantics without a demonstrated defect.
+5. Repair the earliest responsible step, then rebuild every dependent stage.
+6. Continue automatically after validation unless a user decision is required.
 
-## 11. New-conversation quick start
+## 13. Next boundary
 
-When these three documents are provided in a new conversation:
-
-1. Treat Step 0-12 as complete and frozen.
-2. Do not propose restarting Step 10, Step 11, or Step 12.
-3. Use the final Contract and audit as the delivery source of truth.
-4. If asked to develop training code, read only `sample_manifest_v0.1.jsonl` plus raw image files during training; use `dataset_split_v0.1.jsonl` for partition membership.
-5. Keep the default structured-only view and optional reasoning-assisted experiment separate.
-6. Preserve Clip-grouped splits and all leakage boundaries.
-7. Ask the user only for a genuinely new decision, not for project history already contained here.
-
-## 12. Next development boundary
-
-The dataset-production route is closed. The normal next phase is model-training and evaluation development, not further automatic-label redesign. Training work must preserve the frozen Sample Manifest and split contracts, report which training view is used, and avoid introducing hidden joins to Step 4-9 artifacts. Any future dataset expansion should rerun the established pipeline and Step 12 closure rather than changing frozen semantics merely because the data volume grows.
+The normal next phase is model training and evaluation. Future dataset expansion should reuse this pipeline, recompute scale-dependent artifacts, and rerun Step 12. Dataset growth alone is not a reason to change semantics.

@@ -1,212 +1,72 @@
-# Step 7 Scene-Fact Generator Design and Frozen Contract
+# Step 7 Scene-Fact Generator Design and Contract
 
-**Document status:** Final-delivery interface, updated 2026-10-30  
-**Status:** PASS / FROZEN  
-**Formal artifact:** `/home/lab/alpamayo_like_dataset/outcome/annotations/v0.1-draft/scene_facts.jsonl`  
-**Source SHA-256 recorded by Step 10:** `d9f1c772d1538b33153a06af492f3afe873255d57bf8a9606698e98cad3586bc`
+**Document status:** Current reusable Step 7 design  
+**Formal artifact:** `outcome/annotations/v0.1-draft/scene_facts.jsonl`
 
-## 1. Purpose and final boundary
+## 1. Purpose
 
-Step 7 produces one structured Scene-Fact record per selected final Keyframe. It describes the scene at `anchor_ns` without using future execution. It does not generate Structured CoC or natural-language reasoning.
+Step 7 produces structured Scene Facts at `anchor_ns` from current and past evidence. It does not generate Structured CoC or natural-language reasoning. Missing evidence becomes explicit uncertainty rather than an invented fact.
 
-The final Step 10 Sample Manifest contains 1864 Scene-Fact records, one for every final `anchor_id`. Missing or incomplete evidence is represented conservatively through quality fields and reasons, never by dropping the sample or inventing a fact.
+Current scale, distributions, versions, and hashes are read from generated artifacts and contracts.
 
-## 2. Allowed and forbidden evidence
+## 2. Evidence boundary
 
-Allowed:
+Allowed evidence includes the selected Keyframe, synchronized current images, calibration, Anchor-time Ego state, current/past Actor snapshots, and static VectorMap.
 
-- selected Keyframe identity;
-- synchronized camera images and calibration;
-- Anchor-time Ego state;
-- exact/current Actor snapshots;
-- current and past Actor snapshots at or before the Anchor;
-- static VectorMap.
+Forbidden evidence includes Actor future, Ego future, complete-recording future trajectory, planner output, future executed behavior, Meta-action supervision as scene evidence, and optional static occupancy as formal evidence in the current design.
 
-Forbidden for current Scene Facts:
+## 3. Reliable Ego speed invariant
 
-- Actor future;
-- Ego future;
-- complete-recording future trajectory;
-- planner output;
-- future executed behavior;
-- Meta-action labels as scene evidence;
-- optional static-occupancy columns as formal Step 7 evidence in the current delivery.
-
-## 3. Geometry, observability, and occlusion
-
-Coordinates are Anchor Ego-local: x forward, y left. Cameras are `front_wide`, `front_tele`, `cross_left`, and `cross_right`. The implementation uses recorded F-theta calibration, Actor oriented 3D boxes, projected surface geometry, depth rasterization, and Actor-to-Actor Z-buffer competition.
-
-Simulator Actor truth is not automatically visual supervision. An Actor must pass the frozen observability policy before entering a final list.
-
-The implementation evaluates Actor-to-Actor occlusion but does not evaluate arbitrary static-scene mesh occlusion, rendered depth, or pixel-accurate instance masks. Final records therefore retain:
-
-```json
-{"static_occlusion_evaluated": false}
-```
-
-## 4. Final Actor lists and semantics
+Step 7H computes `reference_ego_speed_mps`. The same value propagates through Actor-role selection, Actor geometry, Scene-Fact feature assembly, and final materialization.
 
 ```text
-lead_actors:         maximum 4
-left_nearby_actors:  maximum 6
-right_nearby_actors: maximum 6
+actor.ego_speed_mps == actor_context.reference_ego_speed_mps
 ```
 
-An Actor appears in at most one list per Anchor and receives deterministic `role_rank`.
+Actor-relative velocity, speed gap, relative longitudinal speed, and relative-speed category use the same reliable Ego speed. Recomputing geometry with a frozen raw speed after reference-speed selection is forbidden. Step 7L rejects mismatches before formal output.
 
-Eligible independent classes include automobiles, buses, heavy trucks, other vehicles, trailers, train/tram cars, riders, and people. Non-independent labels such as `protruding_object` are excluded.
+## 4. Geometry and observability
 
-Selection ranges:
+Coordinates are Anchor Ego-local. The implementation uses recorded F-theta calibration, oriented Actor boxes, projected geometry, and Actor-to-Actor occlusion reasoning. Simulator Actor truth is not automatically visual supervision.
 
-- Lead corridor: ahead by more than 0.5 m, absolute lateral offset no more than 2.5 m.
-- Lead horizon: `max(20 m, reference_ego_speed * 10 s)`.
-- Side lateral range: `0.5 m < |y| <= 12 m`.
-- Side forward horizon: `clamp(reference_ego_speed * 5 s, 20 m, 120 m)`.
-- Rear horizon: `clamp(reference_ego_speed * 2 s, 15 m, 50 m)`.
-- Side-person forward distance is capped at 30 m.
+Static-scene mesh occlusion, rendered depth, and pixel-accurate masks are not part of the contract. Review offsets affect visualization only.
 
-Relative distance:
+## 5. Actor roles
 
-- near: no more than 10 m;
-- medium: above 10 m and no more than 30 m;
-- far: above 30 m.
+Formal lists are `lead_actors`, `left_nearby_actors`, and `right_nearby_actors`. An Actor appears in at most one list and receives deterministic `role_rank`.
 
-Motion thresholds:
+Capacities, horizons, geometric thresholds, and motion thresholds are frozen implementation rules. Read exact values from current Step 7 code and tests rather than duplicating them in scale-dependent documentation.
 
-- stable distance-rate magnitude: no more than 0.5 m/s;
-- stationary Actor speed: no more than 0.5 m/s;
-- similar speed difference: no more than 1.0 m/s.
+## 6. Road Context
 
-Unresolved evidence becomes `uncertain` or receives `unknown` quality with reasons.
+Vocabulary includes `lane_following`, `intersection_approach`, `intersection`, and `unknown`. Map-derived proximity is conservative.
 
-## 5. Road Context
+Wait-line type may be unavailable. A visible STOP sign is not automatically a formal stop-line fact. Traffic-light color and brake-light state are not trustworthy formal states and must not be invented.
 
-Vocabulary:
+## 7. Record and downstream contract
 
-```text
-lane_following
-intersection_approach
-intersection
-unknown
-```
+Each Actor includes identity, class, geometry, distance, motion categories, reliable Ego speed, Actor speed, lane relation, visibility, quality, and reasons.
 
-Final proximity fields are `intersection_proximity`, `stop_line_proximity`, and `yield_line_proximity`, with values `at`, `near`, `approaching`, `far`, `none`, or `unknown`.
+Step 8 joins Navigation, Meta-action, and Scene Facts by exact Anchor identity. Current rules include Road Context support for appropriate longitudinal responses, one eligible primary Rank-1 Lead Actor, no fallback to lower Lead ranks, conservative Far Lead and Side Actor behavior, and stage consistency between route-level straight intent and lane-level lane change.
 
-These are conservative map-based facts. Wait-line type is not fully propagated, and a visible STOP sign is not automatically a confirmed Stop-line fact.
+Step 9 converts confirmed Structured CoC facts into non-authoritative language. Step 10 embeds the complete Scene-Fact object and its provenance; training does not join `scene_facts.jsonl`.
 
-## 6. Final record structure
+## 8. Human review protocol
 
-Top level:
+Step 12 generates final review materials. A completed Decision uses `review_status: completed`, six string-valued dimensions using `pass`, `warn`, or `fail`, explicit issues, and reviewer notes. Boolean review values and unrecognized statuses are invalid.
 
-```text
-scene_fact_format_version
-generator_version
-rule_version
-anchor_id
-clip_id
-anchor_ns
-road_context
-actor_context
-quality
-```
+## 9. Known limitations
 
-Current embedded versions:
+- no static-scene occlusion evaluation;
+- no rendered depth or pixel-accurate masks;
+- some visible objects lack usable identity or projection;
+- wait-line type may remain unavailable;
+- traffic-light and brake-light states are not formal facts;
+- lane relation may remain unknown;
+- Scene Facts are context, not causality or reasoning.
 
-```text
-generator_version: 0.1.0
-rule_version:      scene_fact_rules_v0.1-draft
-```
+## 10. Rebuild rule
 
-Each selected Actor includes rank, Track ID, class, relative geometry, distance, motion categories, Actor/Ego speeds, lane-direction relation, observability, visible cameras, quality, and reasons.
+An approved Step 7 change requires tests, rebuild of affected Step 7 stages, invariant and Schema validation, Step 8 frozen-input update, rebuild of all dependent downstream stages, refreshed human review, and final Step 12 closure.
 
-## 7. Final delivered statistics
-
-Final Sample Manifest Scene-Fact coverage: **1864/1864**.
-
-Road Context:
-- `intersection`: 133
-- `intersection_approach`: 582
-- `lane_following`: 1142
-- `unknown`: 7
-
-Scene-Fact quality:
-- `unknown`: 313
-- `usable`: 1551
-
-Selected Actor occurrences in final samples:
-- `lead_actors`: 1770
-- `left_nearby_actors`: 2493
-- `right_nearby_actors`: 2674
-
-These counts describe the final selected Sample Manifest, not historical larger intermediate Keyframe builds. Historical references to 3,500 rows and their old hashes are obsolete for the current delivery.
-
-## 8. Downstream Step 8 interface
-
-The current Structured CoC embedded in the final Sample Manifest uses:
-
-```text
-generator_version: 0.2.0
-rule_version:      structured_causality_rules_v0.3
-source SHA-256:    0339cb78de77248533d68e50ebb7bb0cf13790dc870bc684e3d048a3d682c2e5
-```
-
-Step 8 joins Navigation, Meta-action, and Scene Facts by exact Anchor identity. It keeps evidence references explicit, uses conservative relations, and does not fabricate missing observations. The current rule set includes stage-consistent handling for an upcoming turn whose execution has not begun.
-
-Structured CoC quality in final samples:
-- `partial`: 558
-- `unknown`: 166
-- `usable`: 1140
-
-## 9. Step 9 and Step 10 interface
-
-Step 9 consumes Structured CoC and produces a summary-only, non-authoritative description. It does not alter Step 7 semantics.
-
-Step 10 embeds the complete Scene-Fact object under:
-
-```text
-supervision.scene_facts
-```
-
-and records its quality under:
-
-```text
-quality.scene_facts
-```
-
-The source row's canonical SHA-256 is preserved under:
-
-```text
-provenance.scene_fact_record_sha256
-```
-
-Training uses the embedded Step 10 copy rather than joining `scene_facts.jsonl`.
-
-## 10. Human review
-
-Step 7 review remains available for detailed Actor-overlay diagnostics. Final delivery review is generated through:
-
-```bash
-cd /home/lab/alpamayo_like_dataset/dataset_tools || return
-python3 -m step12.review_sample --split test --seed 12 --force
-```
-
-The final reviewed sample used the current Step 10 builder, current Structured CoC, and current Step 9 summary. All six review dimensions passed. The review Bundle, Decision, overview, and synchronized video hashes are included in the final Step 12 Contract.
-
-## 11. Known limitations
-
-- static-scene occlusion is not evaluated;
-- no rendered depth or pixel-accurate instance masks;
-- some camera-visible objects lack usable Actor identity/projection at the exact Anchor;
-- wait-line type is not fully propagated;
-- STOP-sign presence is not a dedicated visual fact;
-- lane matching may remain unknown;
-- review alignment offsets affect visualization only;
-- Scene Facts are structured labels, not causality or language reasoning.
-
-## 12. Freeze rule
-
-Step 7 is frozen for this delivery. Do not alter its schema, thresholds, list semantics, observability policy, or embedded Sample Manifest representation unless a concrete downstream defect is demonstrated and the change is explicitly approved. Any approved change requires rebuilding and re-closing Steps 8 through 12, including Sample Manifest hashes, split membership validation, human-review freshness, and the final Contract.
-
-## 13. Source-of-truth note
-
-This document freezes Step 7 semantics. Final per-sample training content is the embedded `supervision.scene_facts` object in the Step 10 Sample Manifest. The Step 10 provenance hash, final Contract, and Step 12 audit take precedence over historical review or backup artifacts.
+Current content, scale, distributions, versions, and hashes are authoritative only in formal `outcome/` artifacts.

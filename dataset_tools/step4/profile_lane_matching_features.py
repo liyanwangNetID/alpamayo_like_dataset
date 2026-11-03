@@ -39,7 +39,7 @@ from step4.lane_matcher import (  # noqa: E402
 )
 from step2.vector_map_reader import VectorMapReader  # noqa: E402
 from project_paths import (  # noqa: E402
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
@@ -49,7 +49,7 @@ from project_paths import (  # noqa: E402
 SCRIPT_VERSION = "0.1.0"
 FEATURE_FORMAT_VERSION = "0.1-draft"
 
-DEFAULT_DATASET_ROOT = ALPASIM_DATA_ROOT
+DEFAULT_DATASET_ROOT = DATASET_RAW_ROOT
 DEFAULT_ANCHOR_INPUT = (
     ANNOTATION_ROOT / "candidate_anchors.jsonl"
 )

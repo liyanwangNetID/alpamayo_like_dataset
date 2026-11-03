@@ -15,12 +15,12 @@ from pathlib import Path
 from typing import Any
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
 )
 
-DATA_ROOT = ALPASIM_DATA_ROOT
+DATA_ROOT = DATASET_RAW_ROOT
 TOOL_ROOT = Path(__file__).resolve().parent
 
 DEFAULT_LABEL_INPUT = (

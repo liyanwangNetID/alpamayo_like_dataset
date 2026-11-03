@@ -30,14 +30,14 @@ if str(MODULE_DIRECTORY) not in sys.path:
 
 from step2.clip_reader import DrivingClipReader, stamp_mapping_to_ns  # noqa: E402
 from project_paths import (  # noqa: E402
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
 )
 
 SCRIPT_VERSION = "0.2.0"
 FEATURE_FORMAT_VERSION = "0.2-draft"
-DEFAULT_ROOT = ALPASIM_DATA_ROOT
+DEFAULT_ROOT = DATASET_RAW_ROOT
 DEFAULT_INPUT = (
     INTERMEDIATE_ROOT / "lane_matching_features_v0.1.jsonl"
 )

@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
 )
@@ -33,7 +33,7 @@ from project_paths import (
 
 SCRIPT_VERSION = "0.1.0"
 DIAGNOSTIC_FORMAT_VERSION = "0.1-draft"
-DEFAULT_DATASET_ROOT = ALPASIM_DATA_ROOT
+DEFAULT_DATASET_ROOT = DATASET_RAW_ROOT
 DEFAULT_FEATURE_INPUT = (
     INTERMEDIATE_ROOT / "lane_matching_features_v0.1.jsonl"
 )

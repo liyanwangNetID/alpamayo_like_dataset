@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from step2.coordinate_utils import Point2D  # noqa: E402
-from project_paths import ALPASIM_DATA_ROOT  # noqa: E402
+from project_paths import DATASET_RAW_ROOT  # noqa: E402
 from step2.vector_map_reader import (  # noqa: E402
     VectorMapError,
     VectorMapReader,
@@ -168,7 +168,7 @@ class ParsingAndTopologyTests(unittest.TestCase):
 class RealMapSmokeTest(unittest.TestCase):
     def test_real_map(self):
         path = (
-            ALPASIM_DATA_ROOT
+            DATASET_RAW_ROOT
             / "test_clip_001"
             / "map"
             / "vector_map.json"

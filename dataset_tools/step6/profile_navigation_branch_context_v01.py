@@ -40,13 +40,13 @@ from step6.natural_corridor_family_guard_v01 import (
 from step6.navigation_route_features_v01 import valid_local_points
 from step2.vector_map_reader import VectorMapReader
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
 )
 
-DATA_ROOT = ALPASIM_DATA_ROOT
+DATA_ROOT = DATASET_RAW_ROOT
 ANN = ANNOTATION_ROOT
 DEFAULT_KEYFRAMES = ANNOTATION_ROOT / 'keyframes.jsonl'
 DEFAULT_OUTPUT = (

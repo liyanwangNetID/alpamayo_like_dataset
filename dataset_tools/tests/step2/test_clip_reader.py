@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 
-from project_paths import ALPASIM_DATA_ROOT
+from project_paths import DATASET_RAW_ROOT
 
 from step2.clip_reader import (  # noqa: E402
     CAMERA_NAMES,
@@ -418,7 +418,7 @@ class SyntheticClipReaderTests(unittest.TestCase):
 
 class RealClipSmokeTest(unittest.TestCase):
     def test_real_clip_001(self) -> None:
-        clip = ALPASIM_DATA_ROOT / "test_clip_001"
+        clip = DATASET_RAW_ROOT / "test_clip_001"
         if not clip.is_dir():
             self.skipTest("real test_clip_001 is not available")
         reader = DrivingClipReader(clip)

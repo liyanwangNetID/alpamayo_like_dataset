@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from step7.projection import FthetaCameraCalibration, Quaternion, Vector3, evaluate_polynomial_low_to_high, load_camera_calibration, normalize_quaternion, parse_camera_calibration, project_ftheta_point, rotate_vector_by_quaternion
-from project_paths import ALPASIM_DATA_ROOT
+from project_paths import DATASET_RAW_ROOT
 from step7.projection import Pose3D, actor_box_corners_in_rig, build_actor_box3d, local_box_corners, map_point_to_rig, rig_point_to_map
 from step7.projection import Quaternion, Vector3
 from step7.projection import point_to_segment_distance_px, sample_projected_edge_adaptive
@@ -110,7 +110,7 @@ class CalibrationParserTests(unittest.TestCase):
         self.assertEqual(result.angle_to_pixeldist_poly, (0.0, 25.0))
 
     def test_real_front_wide_calibration_parses_when_available(self) -> None:
-        path = ALPASIM_DATA_ROOT / 'test_clip_001' / 'calibration' / 'front_wide.json'
+        path = DATASET_RAW_ROOT / 'test_clip_001' / 'calibration' / 'front_wide.json'
         if not path.is_file():
             self.skipTest('real test_clip_001 calibration is unavailable')
         result = load_camera_calibration(path, camera_name='front_wide')

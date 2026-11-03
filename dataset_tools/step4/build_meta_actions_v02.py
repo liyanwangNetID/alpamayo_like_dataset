@@ -27,14 +27,14 @@ from step4.meta_action_rules_v02 import (
     make_meta_action_record,
 )
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
     MANIFEST_ROOT,
     REPORT_ROOT,
 )
 
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 DEFAULT_LATERAL_INPUT = (
     INTERMEDIATE_ROOT / "lateral_action_features_v0.3.jsonl"
 )

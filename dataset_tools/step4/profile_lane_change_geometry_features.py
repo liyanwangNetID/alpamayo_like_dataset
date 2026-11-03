@@ -38,14 +38,14 @@ from step4.lane_change_geometry import (
     truncate_polyline,
 )
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
 )
 
 VERSION = "0.3.4"
 FORMAT_VERSION = "0.3-draft"
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 DEFAULT_META_FEATURE_INPUT = (
     INTERMEDIATE_ROOT / "meta_action_features_v0.2.jsonl"
 )

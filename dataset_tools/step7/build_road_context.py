@@ -7,7 +7,7 @@ import json
 import os
 import time
 
-from project_paths import ALPASIM_DATA_ROOT, ANNOTATION_ROOT, INTERMEDIATE_ROOT
+from project_paths import DATASET_RAW_ROOT, ANNOTATION_ROOT, INTERMEDIATE_ROOT
 from step2.clip_reader import DrivingClipReader
 from step7.road_context import summarize_road_feature_rows
 from step7.road_context import (
@@ -101,7 +101,7 @@ def main():
             anchor_id = str(keyframe["anchor_id"])
             anchor_ns = int(keyframe["anchor_ns"])
             if clip_id not in readers:
-                reader = DrivingClipReader(ALPASIM_DATA_ROOT / clip_id)
+                reader = DrivingClipReader(DATASET_RAW_ROOT / clip_id)
                 readers[clip_id] = reader
                 contexts[clip_id] = RoadFeatureMapContext(
                     raw_map=reader.get_vector_map()

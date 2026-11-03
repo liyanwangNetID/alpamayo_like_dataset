@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     MANIFEST_ROOT,
     REPORT_ROOT,
 )
@@ -515,7 +515,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dataset-root",
         type=Path,
-        default=ALPASIM_DATA_ROOT,
+        default=DATASET_RAW_ROOT,
     )
     parser.add_argument(
         "--manifest-output",

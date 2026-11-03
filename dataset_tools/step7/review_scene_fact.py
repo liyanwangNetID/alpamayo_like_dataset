@@ -10,7 +10,7 @@ from typing import Any, Mapping, Sequence
 
 import cv2
 
-from project_paths import ALPASIM_DATA_ROOT, ANNOTATION_ROOT, REPORT_ROOT
+from project_paths import DATASET_RAW_ROOT, ANNOTATION_ROOT, REPORT_ROOT
 from step2.clip_reader import CAMERA_NAMES, DrivingClipReader
 
 DEFAULT_SCENE_FACTS = ANNOTATION_ROOT / "scene_facts.jsonl"
@@ -157,7 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Allow random selection of Scene-Facts with no selected Actor role.",
     )
     parser.add_argument("--scene-facts", type=Path, default=DEFAULT_SCENE_FACTS)
-    parser.add_argument("--dataset-root", type=Path, default=ALPASIM_DATA_ROOT)
+    parser.add_argument("--dataset-root", type=Path, default=DATASET_RAW_ROOT)
     parser.add_argument("--output-directory", type=Path, default=DEFAULT_OUTPUT_DIRECTORY)
     parser.add_argument("--pre-sec", type=float, default=2.0)
     parser.add_argument("--post-sec", type=float, default=3.0)

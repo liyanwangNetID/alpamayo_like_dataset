@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator
-from project_paths import ALPASIM_DATA_ROOT, MANIFEST_ROOT, REPORT_ROOT, SCHEMA_ROOT
+from project_paths import DATASET_RAW_ROOT, MANIFEST_ROOT, REPORT_ROOT, SCHEMA_ROOT
 from step10.contract import canonical_sha256
 from step10.schema import sample_manifest_schema
 from step11.schema import dataset_split_schema
@@ -76,6 +76,11 @@ def dimensions(sample: dict[str, Any]) -> dict[str, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument(
+        "--require-human-review",
+        action="store_true",
+        help="Require completed, fresh human reviews for formal delivery.",
+    )
     args = parser.parse_args()
     samples = read_jsonl(SAMPLE)
     splits = read_jsonl(SPLIT)
@@ -113,7 +118,7 @@ def main() -> int:
             for frame in frames:
                 relative = Path(frame["image_path"])
                 absolute_paths += int(relative.is_absolute() or ".." in relative.parts)
-                missing_images += int(not (ALPASIM_DATA_ROOT / relative).is_file())
+                missing_images += int(not (DATASET_RAW_ROOT / relative).is_file())
                 image_count += 1
         points = row["model_input"]["ego_history"]["points"]
         history_count += len(points)
@@ -225,8 +230,15 @@ def main() -> int:
 
     human_checks, human_warnings, human_errors, human_artifacts = audit_human_reviews(REVIEW_ROOT, sample_by_id)
     checks.update(human_checks)
-    warnings.extend(human_warnings)
-    errors.extend(human_errors)
+    checks["human_review_required"] = args.require_human_review
+    checks["human_review_status"] = (
+        "required_and_valid" if args.require_human_review and not human_errors
+        else "required_but_invalid" if args.require_human_review
+        else "not_required"
+    )
+    if args.require_human_review:
+        warnings.extend(human_warnings)
+        errors.extend(human_errors)
 
     statistics = {
         "statistics_version": "0.1", "record_count": len(samples), "clip_count": len(clip_splits),
@@ -238,7 +250,7 @@ def main() -> int:
     write_schema(SCHEMA)
     audit = {"audit_version": "0.1", "status": status, "record_count": len(samples), "clip_count": len(clip_splits), "checks": checks, "warnings": warnings, "errors": errors, "artifacts": {"sample_manifest": str(SAMPLE), "dataset_split": str(SPLIT), "statistics": str(STATS), "delivery_summary": str(DELIVERY), "human_reviews": human_artifacts}}
     Draft202012Validator(final_audit_schema()).validate(audit)
-    delivery = f"""# Final Dataset Delivery Summary v0.1\n\n- Audit status: **{status}**\n- Samples: **{len(samples)}**\n- Clips: **{len(clip_splits)}**\n- Train / validation / test: **{split_counts['train']} / {split_counts['validation']} / {split_counts['test']}**\n- Image references: **{image_count}**, missing: **{missing_images}**\n- Ego-history points: **{history_count}**\n- Clip cross-split count: **{len(cross)}**\n- Audit warnings: **{len(warnings)}**\n- Audit errors: **{len(errors)}**\n- Human reviews completed / pass / warn / fail: **{human_checks['human_review_completed_count']} / {human_checks['human_review_pass_count']} / {human_checks['human_review_warning_count']} / {human_checks['human_review_fail_count']}**\n- Human reviews pending / stale: **{human_checks['human_review_pending_count']} / {human_checks['human_review_stale_count']}**\n\nStep 9 reasoning remains non-authoritative and excluded from the default training view.\n"""
+    delivery = f"""# Final Dataset Delivery Summary v0.1\n\n- Audit status: **{status}**\n- Samples: **{len(samples)}**\n- Clips: **{len(clip_splits)}**\n- Train / validation / test: **{split_counts['train']} / {split_counts['validation']} / {split_counts['test']}**\n- Image references: **{image_count}**, missing: **{missing_images}**\n- Ego-history points: **{history_count}**\n- Clip cross-split count: **{len(cross)}**\n- Audit warnings: **{len(warnings)}**\n- Audit errors: **{len(errors)}**\n- Human review required for this run: **{args.require_human_review}**\n- Human reviews completed / pass / warn / fail: **{human_checks['human_review_completed_count']} / {human_checks['human_review_pass_count']} / {human_checks['human_review_warning_count']} / {human_checks['human_review_fail_count']}**\n- Human reviews pending / stale: **{human_checks['human_review_pending_count']} / {human_checks['human_review_stale_count']}**\n\nStep 9 reasoning remains non-authoritative and excluded from the default training view.\n"""
     contract = {"contract_version": "0.1", "producer_step": 12, "status": status, "record_count": len(samples), "clip_count": len(clip_splits), "sample_manifest_sha256": sha256(SAMPLE), "dataset_split_sha256": sha256(SPLIT), "audit_path": str(AUDIT), "audit_sha256": None, "statistics_path": str(STATS), "statistics_sha256": None, "delivery_summary_path": str(DELIVERY), "delivery_summary_sha256": None, "audit_schema_path": str(SCHEMA), "audit_schema_sha256": sha256(SCHEMA), "machine_audit_errors": len(errors), "machine_audit_warnings": len(warnings), "human_review_directory": str(REVIEW_ROOT), "human_review_checks": human_checks, "human_review_artifacts": human_artifacts}
     atomic_write(STATS, json.dumps(statistics, ensure_ascii=False, indent=2, sort_keys=True) + "\n", args.force)
     atomic_write(DELIVERY, delivery, args.force)

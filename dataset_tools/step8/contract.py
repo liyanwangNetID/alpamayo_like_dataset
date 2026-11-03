@@ -19,12 +19,9 @@ STRUCTURED_CAUSALITY_FORMAT_VERSION = "0.1-draft"
 GENERATOR_VERSION = "0.3.0"
 RULE_VERSION = "structured_causality_rules_v0.4"
 
-EXPECTED_SHA256 = {
-    "keyframes": "ab23cfe96037f35eef6bd3d687e01c2b8ca724403dd2306ae26f4d2480d7b841",
-    "meta_actions": "4c95d382ae94534953ae250cdd4331c3fe538583222f5a89b4623a51c9aaa42b",
-    "navigation": "6a8754e20d0e261b716326d49987570e35255661e44388d10b8e31780ee9229f",
-    "scene_facts": "3d844c16f302b3529b196de5524ffbd86717718a63e7513df92d04126c4c3ad3",
-}
+# Source hashes are dataset-instance provenance, not source-code constants.
+# Step 5 contracts freeze Keyframe and Meta-action hashes. Navigation and
+# Scene-Fact hashes are captured from the current validated artifacts below.
 
 
 class Step8ContractError(ValueError):
@@ -148,17 +145,18 @@ def _identity(row: Mapping[str, Any], source_name: str, anchor_id: str) -> tuple
     return clip_id, anchor_ns
 
 
-def validate_frozen_hashes(paths: Step8Paths) -> dict[str, str]:
+def collect_source_hashes(paths: Step8Paths) -> dict[str, str]:
+    """Hash the current validated upstream artifacts for Step 8 provenance.
+
+    Dataset size and selected Anchor membership may change between runs, so
+    these digests must not be hard-coded in source. Cross-step integrity for
+    Keyframes and Meta-actions is enforced by validate_keyframe_contract().
+    """
     actual: dict[str, str] = {}
     for name, path in paths.inputs().items():
         if not path.is_file():
             raise Step8ContractError(f"missing {name} artifact: {path}")
         actual[name] = sha256_file(path)
-        expected = EXPECTED_SHA256[name]
-        if actual[name] != expected:
-            raise Step8ContractError(
-                f"{name} SHA-256 mismatch: expected={expected} actual={actual[name]}"
-            )
     return actual
 
 
@@ -251,9 +249,10 @@ def load_and_validate_inputs(
         loaded["meta_actions"][1],
     )
     contract = validate_keyframe_contract(paths, len(joined))
-    hashes = validate_frozen_hashes(paths) if validate_hashes else {
-        name: sha256_file(path) for name, path in paths.inputs().items()
-    }
+    # The contract validation above checks the current Keyframe and Meta-action
+    # digests. Always collect all current source digests for output provenance.
+    # validate_hashes is retained for API compatibility with existing callers.
+    hashes = collect_source_hashes(paths)
     provenance = {
         "keyframe_contract": contract,
         "source_sha256": hashes,

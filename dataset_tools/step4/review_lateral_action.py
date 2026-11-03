@@ -26,12 +26,12 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
 )
 
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 DEFAULT_LATERAL_FEATURES = (
     INTERMEDIATE_ROOT / "lateral_action_features_v0.3.jsonl"
 )

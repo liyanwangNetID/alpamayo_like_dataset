@@ -17,7 +17,7 @@ from step4.lane_matcher import (  # noqa: E402
     trajectory_poses_from_gt_points,
 )
 from step2.vector_map_reader import VectorMapReader  # noqa: E402
-from project_paths import ALPASIM_DATA_ROOT  # noqa: E402
+from project_paths import DATASET_RAW_ROOT  # noqa: E402
 
 
 def polyline(points):
@@ -183,7 +183,7 @@ class LaneMatcherTests(unittest.TestCase):
 
 class RealDataSmokeTest(unittest.TestCase):
     def test_selected_anchor_from_clip_001(self):
-        clip_path = ALPASIM_DATA_ROOT / "test_clip_001"
+        clip_path = DATASET_RAW_ROOT / "test_clip_001"
         if not clip_path.is_dir():
             self.skipTest("real test_clip_001 is unavailable")
         reader = DrivingClipReader(clip_path)

@@ -30,7 +30,7 @@ from typing import Any, Iterable, Mapping, Protocol, Sequence
 
 from step2.clip_reader import DrivingClipReader  # noqa: E402
 from project_paths import (  # noqa: E402
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     MANIFEST_ROOT,
     REPORT_ROOT,
@@ -397,7 +397,7 @@ class AnchorSelector:
 
 SCRIPT_VERSION = "0.1.0"
 ANCHOR_FORMAT_VERSION = "0.1-draft"
-DEFAULT_DATASET_ROOT = ALPASIM_DATA_ROOT
+DEFAULT_DATASET_ROOT = DATASET_RAW_ROOT
 DEFAULT_MANIFEST = MANIFEST_ROOT / "clips_v0.1.jsonl"
 DEFAULT_ANCHOR_OUTPUT = (
     ANNOTATION_ROOT / "candidate_anchors.jsonl"

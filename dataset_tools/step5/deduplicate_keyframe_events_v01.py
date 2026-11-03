@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
 )
@@ -95,7 +95,7 @@ def normalize_anchor_events(events: Sequence[Mapping[str, Any]]) -> list[dict[st
     return normalized
 
 
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 DEFAULT_INPUT = (
     INTERMEDIATE_ROOT / "keyframe_event_candidates_v0.1.jsonl"
 )

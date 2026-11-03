@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from step3.candidate_anchors import parse_args
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     MANIFEST_ROOT,
     REPORT_ROOT,
@@ -23,7 +23,7 @@ class BuildCandidateAnchorsPathTests(unittest.TestCase):
         with patch.object(sys, "argv", ["candidate_anchors.py"]):
             args = parse_args()
 
-        self.assertEqual(args.dataset_root, ALPASIM_DATA_ROOT)
+        self.assertEqual(args.dataset_root, DATASET_RAW_ROOT)
         self.assertEqual(args.manifest, MANIFEST_ROOT / "clips_v0.1.jsonl")
         self.assertEqual(
             args.anchor_output,

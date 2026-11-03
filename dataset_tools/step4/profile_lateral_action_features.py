@@ -48,7 +48,7 @@ from step4.natural_lane_corridor import (  # noqa: E402
     recover_boundary_branch_comparisons,
 )
 from project_paths import (  # noqa: E402
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
@@ -58,7 +58,7 @@ SCRIPT_VERSION = "0.3.2"
 FEATURE_FORMAT_VERSION = "0.3.2-draft"
 DEFAULT_MINIMUM_PATH_SEGMENT_LENGTH_M = 0.1
 
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 DEFAULT_ANCHORS = (
     ANNOTATION_ROOT / "candidate_anchors.jsonl"
 )

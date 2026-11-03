@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
     REPORT_ROOT,
@@ -307,7 +307,7 @@ def detect_anchor_events(
     return events
 
 
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 DEFAULT_CANDIDATE_INPUT = (
     ANNOTATION_ROOT / "candidate_anchors.jsonl"
 )

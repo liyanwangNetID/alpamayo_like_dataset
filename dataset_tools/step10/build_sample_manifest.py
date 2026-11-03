@@ -11,7 +11,7 @@ from typing import Any, Mapping
 
 from jsonschema import Draft202012Validator
 
-from project_paths import ALPASIM_DATA_ROOT, ANNOTATION_ROOT, MANIFEST_ROOT, REPORT_ROOT, SCHEMA_ROOT
+from project_paths import DATASET_RAW_ROOT, ANNOTATION_ROOT, MANIFEST_ROOT, REPORT_ROOT, SCHEMA_ROOT
 from step2.clip_reader import CAMERA_NAMES, DrivingClipReader
 from step10.contract import canonical_json, canonical_sha256, file_sha256, index_by_anchor, read_jsonl, require_identity, without_identity
 from step10.schema import BUILDER_VERSION, FORMAT_VERSION, FRAME_OFFSETS_NS, sample_manifest_schema, write_schema
@@ -199,7 +199,7 @@ def build_record(*, keyframe: Mapping[str, Any], candidate: Mapping[str, Any], m
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset-root", type=Path, default=ALPASIM_DATA_ROOT)
+    parser.add_argument("--dataset-root", type=Path, default=DATASET_RAW_ROOT)
     parser.add_argument("--output", type=Path, default=OUTPUT)
     parser.add_argument("--contract-output", type=Path, default=CONTRACT)
     parser.add_argument("--summary-output", type=Path, default=SUMMARY)

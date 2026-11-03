@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from step1.clip_manifest import parse_args
-from project_paths import ALPASIM_DATA_ROOT, MANIFEST_ROOT, REPORT_ROOT
+from project_paths import DATASET_RAW_ROOT, MANIFEST_ROOT, REPORT_ROOT
 
 
 class BuildClipManifestPathTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class BuildClipManifestPathTests(unittest.TestCase):
         with patch.object(sys, "argv", ["clip_manifest.py"]):
             args = parse_args()
 
-        self.assertEqual(args.dataset_root, ALPASIM_DATA_ROOT)
+        self.assertEqual(args.dataset_root, DATASET_RAW_ROOT)
         self.assertEqual(
             args.manifest_output,
             MANIFEST_ROOT / "clips_v0.1.jsonl",

@@ -38,8 +38,14 @@ def configured_path(name: str, *, config: Mapping[str, str], default: Path | Non
     raise RuntimeError(f"{name} is not configured. Create {LOCAL_CONFIG_PATH} from config/local_paths.env.example.")
 
 _LOCAL_CONFIG = read_local_path_config()
-ALPASIM_DATA_ROOT = configured_path("ALPASIM_DATA_ROOT", config=_LOCAL_CONFIG)
-ALPASIM_ROOT = configured_path("ALPASIM_ROOT", config=_LOCAL_CONFIG)
+# The raw Clip root is supplied by run_pipeline.py through --dataset-root.
+# Keep a non-existent repository-relative sentinel only so modules remain
+# importable for tests and library use before the CLI has resolved a real root.
+DATASET_RAW_ROOT = configured_path(
+    "DATASET_RAW_ROOT",
+    config=_LOCAL_CONFIG,
+    default=DATASET_REPOSITORY_ROOT / ".dataset_raw_root_unconfigured",
+)
 DATASET_OUTCOME_ROOT = configured_path("DATASET_OUTCOME_ROOT", config=_LOCAL_CONFIG, default=DATASET_REPOSITORY_ROOT / "outcome")
 ANNOTATION_ROOT = DATASET_OUTCOME_ROOT / "annotations" / "v0.1-draft"
 INTERMEDIATE_ROOT = ANNOTATION_ROOT / "intermediate"

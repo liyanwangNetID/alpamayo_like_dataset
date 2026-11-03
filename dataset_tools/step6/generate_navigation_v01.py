@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
     MANIFEST_ROOT,
@@ -284,7 +284,7 @@ def classify_navigation(
     }
 
 
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 ANN = ANNOTATION_ROOT
 DEFAULT_KEYFRAMES = ANNOTATION_ROOT / "keyframes.jsonl"
 DEFAULT_ROUTE_FEATURES = (

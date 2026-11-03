@@ -74,7 +74,7 @@ def main():
     parser.add_argument("--scene-facts", type=Path)
     args = parser.parse_args()
 
-    dataset_root = Path(os.environ["ALPASIM_DATA_ROOT"])
+    dataset_root = Path(os.environ["DATASET_RAW_ROOT"])
     scene_facts = args.scene_facts or dataset_root / "annotations/v0.1-draft/scene_facts.jsonl"
     row = load_scene_fact(scene_facts, args.anchor_id)
     clip_root = dataset_root / str(row["clip_id"])

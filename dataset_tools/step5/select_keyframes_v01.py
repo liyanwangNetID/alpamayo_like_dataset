@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from project_paths import (
-    ALPASIM_DATA_ROOT,
+    DATASET_RAW_ROOT,
     ANNOTATION_ROOT,
     INTERMEDIATE_ROOT,
     MANIFEST_ROOT,
@@ -157,7 +157,7 @@ def select_with_clip_preference(
     return chosen
 
 
-ROOT = ALPASIM_DATA_ROOT
+ROOT = DATASET_RAW_ROOT
 ANN = ANNOTATION_ROOT
 DEFAULT_CANDIDATES = (
     ANNOTATION_ROOT / "candidate_anchors.jsonl"

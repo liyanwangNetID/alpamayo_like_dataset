@@ -8,7 +8,7 @@ import os
 import time
 from collections import defaultdict
 
-from project_paths import ALPASIM_DATA_ROOT, ANNOTATION_ROOT, INTERMEDIATE_ROOT
+from project_paths import DATASET_RAW_ROOT, ANNOTATION_ROOT, INTERMEDIATE_ROOT
 from step2.clip_reader import DrivingClipReader
 from step7.observability import (
     evaluate_frozen_dynamic_occlusion_policy,
@@ -109,7 +109,7 @@ def main():
             clip_id = str(keyframe["clip_id"])
             anchor_ns = int(keyframe["anchor_ns"])
             reader = readers.setdefault(
-                clip_id, DrivingClipReader(ALPASIM_DATA_ROOT / clip_id)
+                clip_id, DrivingClipReader(DATASET_RAW_ROOT / clip_id)
             )
             ego = reader.get_recorded_ego_state_at_or_before(anchor_ns)
             actors = reader.get_actors_at(anchor_ns)

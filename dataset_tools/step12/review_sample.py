@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 import cv2
 
-from project_paths import ALPASIM_DATA_ROOT, MANIFEST_ROOT, REPORT_ROOT
+from project_paths import DATASET_RAW_ROOT, MANIFEST_ROOT, REPORT_ROOT
 from step7.review_scene_fact import create_review_video, letterbox
 
 SAMPLE = MANIFEST_ROOT / "sample_manifest_v0.1.jsonl"
@@ -43,7 +43,7 @@ def overview(row, output: Path):
     for index, offset in enumerate(visual["frame_offsets_ns"]):
         panels = []
         for camera in visual["camera_names"]:
-            path = ALPASIM_DATA_ROOT / visual["frames"][camera][index]["image_path"]
+            path = DATASET_RAW_ROOT / visual["frames"][camera][index]["image_path"]
             image = cv2.imread(str(path), cv2.IMREAD_COLOR)
             if image is None: raise RuntimeError(f"unable to read image: {path}")
             image = letterbox(image, panel_w, panel_h)
@@ -103,7 +103,7 @@ def main() -> int:
     overview(selected, overview_path)
     if not args.no_video:
         scene = {"anchor_id": selected["anchor_id"], "clip_id": selected["clip_id"], "anchor_ns": selected["anchor_ns"], **selected["supervision"]["scene_facts"]}
-        create_review_video(scene, dataset_root=ALPASIM_DATA_ROOT, output_path=video_path, pre_seconds=args.pre_sec, post_seconds=args.post_sec, fps=args.fps, panel_width=640, panel_height=360, force=args.force)
+        create_review_video(scene, dataset_root=DATASET_RAW_ROOT, output_path=video_path, pre_seconds=args.pre_sec, post_seconds=args.post_sec, fps=args.fps, panel_width=640, panel_height=360, force=args.force)
     bundle = {"anchor_id": selected["anchor_id"], "split": split, "sample": selected, "generated_outputs": {"video": str(video_path) if not args.no_video else None, "overview_image": str(overview_path)}, "review_selection": {"seed": args.seed, "filters": {key: value for key, value in vars(args).items() if value not in (None, False)}}}
     bundle_path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if not decision_path.exists() or args.force:

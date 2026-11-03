@@ -13,7 +13,7 @@ from step7.occlusion import ActorGeometricOcclusionWithProjectionContextResult
 import argparse
 import time
 from typing import Any
-from project_paths import ALPASIM_DATA_ROOT, ANNOTATION_ROOT, MANIFEST_ROOT
+from project_paths import DATASET_RAW_ROOT, ANNOTATION_ROOT, MANIFEST_ROOT
 from step2.clip_reader import DrivingClipReader
 from step7.occlusion import CameraGeometricOcclusionBuildInput
 from step7.occlusion import build_actor_geometric_occlusion_with_projection_context
@@ -278,7 +278,7 @@ def export(*, keyframe_path: Path, output_path: Path, summary_path: Path, keyfra
     readers = {}
     for index, keyframe in enumerate(keyframes, start=1):
         clip_id = str(keyframe['clip_id'])
-        reader = readers.setdefault(clip_id, DrivingClipReader(ALPASIM_DATA_ROOT / clip_id))
+        reader = readers.setdefault(clip_id, DrivingClipReader(DATASET_RAW_ROOT / clip_id))
         prepared.extend(build_anchor_inputs(keyframe=keyframe, reader=reader))
         if index % 10 == 0 or index == len(keyframes):
             elapsed = time.monotonic() - started
@@ -286,7 +286,7 @@ def export(*, keyframe_path: Path, output_path: Path, summary_path: Path, keyfra
             eta = (len(keyframes) - index) / rate if rate else 0.0
             print(f'[Step 7E] {index}/{len(keyframes)} | rows {len(prepared)} | elapsed {_duration(elapsed)} | rate {rate:.2f}/s | ETA {_duration(eta)}', flush=True)
     summary = write_evidence(inputs=prepared, output_path=output_path, summary_path=summary_path)
-    coverage = summarize_anchor_coverage(keyframes=keyframes, exported_identities=tuple(((str(item.keyframe['anchor_id']), item.context.track_id) for item in prepared)), reader_factory=lambda clip_id: DrivingClipReader(ALPASIM_DATA_ROOT / clip_id))
+    coverage = summarize_anchor_coverage(keyframes=keyframes, exported_identities=tuple(((str(item.keyframe['anchor_id']), item.context.track_id) for item in prepared)), reader_factory=lambda clip_id: DrivingClipReader(DATASET_RAW_ROOT / clip_id))
     summary = attach_coverage(summary=summary, coverage=coverage)
     summary.update({'keyframe_contract': str(keyframe_contract_path), 'keyframe_count': int(contract['keyframe_count']), 'keyframe_sha256': str(contract['keyframe_sha256']), 'keyframe_contract_version': str(contract['contract_version'])})
     temporary = summary_path.with_suffix(summary_path.suffix + '.tmp')

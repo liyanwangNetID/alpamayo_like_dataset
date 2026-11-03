@@ -2,7 +2,7 @@
 """Build Step 7I-7K Scene-Fact feature rows with progress and ETA."""
 from __future__ import annotations
 import hashlib, json, os, time
-from project_paths import ALPASIM_DATA_ROOT, ANNOTATION_ROOT, INTERMEDIATE_ROOT
+from project_paths import DATASET_RAW_ROOT, ANNOTATION_ROOT, INTERMEDIATE_ROOT
 from step2.clip_reader import DrivingClipReader
 from step7.scene_facts import assemble_scene_fact_feature_row
 from step7.scene_facts import summarize_scene_fact_feature_rows
@@ -76,7 +76,7 @@ def main():
             anchor = str(keyframe["anchor_id"])
             clip = str(keyframe["clip_id"])
             anchor_ns = int(keyframe["anchor_ns"])
-            reader = readers.setdefault(clip, DrivingClipReader(ALPASIM_DATA_ROOT / clip))
+            reader = readers.setdefault(clip, DrivingClipReader(DATASET_RAW_ROOT / clip))
             ego = reader.get_recorded_ego_state_at_or_before(anchor_ns)
             actors = reader.get_actors_at(anchor_ns)
             if ego is None or ego.stamp_ns != anchor_ns or actors is None or actors.stamp_ns != anchor_ns:

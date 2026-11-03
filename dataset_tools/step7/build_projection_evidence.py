@@ -16,7 +16,7 @@ from typing import Any
 from step7.projection import project_actor_box_to_camera
 from step7.projection import load_camera_calibration
 from step2.clip_reader import DrivingClipReader
-from project_paths import ALPASIM_DATA_ROOT, ANNOTATION_ROOT
+from project_paths import DATASET_RAW_ROOT, ANNOTATION_ROOT
 from step7.scene_facts import CAMERA_NAMES
 KEYFRAME_PATH = ANNOTATION_ROOT / 'keyframes.jsonl'
 OUTPUT_PATH = ANNOTATION_ROOT / 'step7e_projection_evidence_v01.jsonl'
@@ -88,7 +88,7 @@ def main() -> int:
             try:
                 if clip_id != current_clip_id:
                     current_clip_id = clip_id
-                    reader = DrivingClipReader(ALPASIM_DATA_ROOT / clip_id)
+                    reader = DrivingClipReader(DATASET_RAW_ROOT / clip_id)
                     calibrations = {}
                     for camera_name in CAMERA_NAMES:
                         exact = reader.camera_indexes[camera_name].exact(anchor_ns)

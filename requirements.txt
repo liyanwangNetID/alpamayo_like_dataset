@@ -1,0 +1,7 @@
+# Generated from dataset_tools imports using the tested active environment.
+# Python runtime used for generation: 3.12.13
+# Regenerate after dependency changes.
+
+jsonschema==4.26.0
+opencv-python-headless==5.0.0.93
+pytest==9.1.1

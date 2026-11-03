@@ -3,7 +3,8 @@
 This repository converts recorded AlpaSim multicamera Clips into a self-contained driving-decision dataset. A single entry point runs the complete production workflow:
 
 ```bash
-python3 -u dataset_tools/run_pipeline.py \
+cd dataset_tools || return
+python3 -u run_pipeline.py \
   --dataset-root /path/to/raw_clips \
   --outcome-root /path/to/dataset_outcome \
   --force
@@ -15,12 +16,14 @@ The raw-data root and product root are supplied explicitly when the pipeline sta
 
 ```text
 alpamayo_like_dataset/
+|-- .gitignore       Generated-product and local-file exclusions
 |-- dataset_tools/   Step 1-12 implementation, tests, and run_pipeline.py
 |-- docs/            Design, data-format, and handoff documentation
+|-- requirements.txt Pinned Python dependencies
 `-- README.md
 ```
 
-`outcome/` and `outcome_full/` are generated-product directories and are ignored by Git. A fresh clone is not expected to contain either directory. The directory supplied through `--outcome-root` is created when the pipeline runs.
+`outcome/` and `outcome_full/` are examples of local generated-product directories and are ignored by Git. They are not part of a fresh clone. The pipeline creates whichever directory is supplied through `--outcome-root`; the directory name can be different.
 
 There is no required `config/` directory and no dependency on an AlpaSim source-code workspace. The only required AlpaSim input is the recorded raw Clip directory supplied through `--dataset-root`.
 
@@ -55,32 +58,28 @@ Replace `<REPOSITORY_URL>` with the actual Git remote URL.
 
 ## 2. Create the Python environment
 
-Python 3.12 is the currently tested version.
+Python 3.12 is required; Python 3.12.13 is the version used for the clean-environment validation. This project uses `uv` for environment and package installation. Install `uv` if it is not already available:
 
 ```bash
-python3.12 -m venv .venv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Create and activate a repository-local Python 3.12 environment:
+
+```bash
+uv venv --python 3.12 .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip setuptools wheel
 ```
 
-Install the repository dependencies from its dependency declaration:
+Install the pinned Python dependencies:
 
 ```bash
-if [ -f requirements.txt ]; then
-  python3 -m pip install -r requirements.txt
-elif [ -f pyproject.toml ]; then
-  python3 -m pip install -e .
-else
-  printf '%s\n' 'ERROR: requirements.txt or pyproject.toml is missing.'
-  exit 1
-fi
+uv pip install -r requirements.txt
 ```
 
-The complete test suite uses `pytest`. If it is not already included by the dependency declaration:
+`uv` environments do not need the `pip` module. Use `uv pip`, not `python3 -m pip`. The committed `requirements.txt` includes the test dependency `pytest`.
 
-```bash
-python3 -m pip install pytest
-```
+The committed dependency set was validated in a fresh `uv` environment with the complete test suite: `994 passed, 4 skipped, 8 subtests passed`.
 
 ## 3. Install and configure Ollama
 
@@ -169,9 +168,12 @@ From the repository root:
 
 ```bash
 cd dataset_tools || return
-python3 -m pytest -q
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q
 cd ..
 ```
+
+
+The `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` prefix prevents unrelated globally installed pytest plugins from being loaded. This is important on machines whose shell has sourced ROS 2, because ROS packages such as `launch_testing` may otherwise be discovered outside the project virtual environment. Pytest 9 provides the subtests support used by this repository as a built-in plugin, so disabling third-party plugin autoload does not remove the project's subtest coverage.
 
 Do not start a formal production run until the complete suite passes.
 
@@ -221,6 +223,7 @@ The pipeline stops immediately if a stage returns a nonzero exit code or if an e
 Rebuild from Step 7 through Step 12:
 
 ```bash
+cd /path/to/alpamayo_like_dataset/dataset_tools || return
 python3 -u run_pipeline.py \
   --dataset-root /path/to/raw_clips \
   --outcome-root /path/to/dataset_outcome \
@@ -231,6 +234,7 @@ python3 -u run_pipeline.py \
 Run only Step 8 through Step 10:
 
 ```bash
+cd /path/to/alpamayo_like_dataset/dataset_tools || return
 python3 -u run_pipeline.py \
   --dataset-root /path/to/raw_clips \
   --outcome-root /path/to/dataset_outcome \
@@ -248,6 +252,7 @@ By default, Step 12 performs the automated audit and does not require human revi
 For formal delivery that requires completed and fresh human reviews:
 
 ```bash
+cd /path/to/alpamayo_like_dataset/dataset_tools || return
 python3 -u run_pipeline.py \
   --dataset-root /path/to/raw_clips \
   --outcome-root /path/to/dataset_outcome \
@@ -299,6 +304,17 @@ Training should read the self-contained Sample Manifest and the Step 11 split. A
 
 ## 12. Common failures
 
+
+### Pytest tries to import ROS 2 `launch_testing`
+
+Run tests with third-party plugin autoload disabled:
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -q
+```
+
+Do not add `PyYAML` merely to satisfy a ROS pytest plugin. The dataset repository does not require that plugin; it was discovered from the surrounding shell environment rather than from `requirements.txt`.
+
 ### The raw Clip root does not exist
 
 Check that `--dataset-root` is correct and directly contains `test_clip_*` directories.
@@ -320,6 +336,7 @@ ollama ls
 Start the service or `ollama serve`, verify `qwen3:14b`, and rerun from Step 9:
 
 ```bash
+cd /path/to/alpamayo_like_dataset/dataset_tools || return
 python3 -u run_pipeline.py \
   --dataset-root /path/to/raw_clips \
   --outcome-root /path/to/dataset_outcome \

@@ -77,8 +77,12 @@ def main():
             str(row["clip_id"]), int(row["anchor_ns"]), str(row["anchor_id"])
         ),
     )
-    readers = {}
-    contexts = {}
+    # Keyframes are sorted by clip_id, so only the active Clip needs to
+    # remain resident. Caching every DrivingClipReader and parsed VectorMap grows
+    # linearly with the number of Clips and exhausted 32 GiB on the full dataset.
+    current_clip_id = None
+    reader = None
+    context = None
     actor_rows = []
     ego_rows = []
     actor_tmp = ACTOR_OUTPUT.with_suffix(".jsonl.tmp")
@@ -100,14 +104,16 @@ def main():
             clip_id = str(keyframe["clip_id"])
             anchor_id = str(keyframe["anchor_id"])
             anchor_ns = int(keyframe["anchor_ns"])
-            if clip_id not in readers:
+            if clip_id != current_clip_id:
+                # Rebinding releases the previous Clip reader and its parsed map.
+                # This is safe because all Keyframes for one Clip are contiguous.
                 reader = DrivingClipReader(DATASET_RAW_ROOT / clip_id)
-                readers[clip_id] = reader
-                contexts[clip_id] = RoadFeatureMapContext(
+                context = RoadFeatureMapContext(
                     raw_map=reader.get_vector_map()
                 )
-            reader = readers[clip_id]
-            context = contexts[clip_id]
+                current_clip_id = clip_id
+            if reader is None or context is None:
+                raise RuntimeError("active Clip context was not initialized")
             ego = reader.get_recorded_ego_state_at_or_before(anchor_ns)
             actors = reader.get_actors_at(anchor_ns)
             if (

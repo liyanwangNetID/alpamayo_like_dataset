@@ -1,5 +1,6 @@
 """Tests for frozen Step 7 Actor-list selection."""
 from __future__ import annotations
+from pathlib import Path
 import pytest
 from step7.actor_roles import ActorRoleCandidate, actor_selection_horizons, select_actor_roles, summarize_actor_role_rows
 
@@ -78,3 +79,12 @@ def test_selected_actor_speed_matches_reference_speed():
     )
     assert roles["selection_context"]["reference_ego_speed_mps"] == 2.0
     assert roles["lead_actors"][0]["ego_speed_mps"] == 2.0
+
+def test_build_actor_roles_uses_bounded_active_clip_cache():
+    source = Path("step7/build_actor_roles.py").read_text(encoding="utf-8")
+    assert "readers = {}" not in source
+    assert "readers.setdefault" not in source
+    assert "current_clip_id = None" in source
+    assert "if clip_id != current_clip_id:" in source
+    assert "current_clip_id = clip_id" in source
+

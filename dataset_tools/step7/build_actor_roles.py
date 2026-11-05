@@ -98,7 +98,12 @@ def main():
             "winning_cell_count": decision.winning_cell_count,
             "maximum_visible_fraction": decision.maximum_visible_fraction,
         })
-    readers = {}
+    # Keyframes are sorted by clip_id. Retain only the active reader;
+    # caching one DrivingClipReader per Clip grows linearly because each reader
+    # lazily retains camera, Ego, and Actor indexes. On the full dataset this
+    # exhausted 32 GiB near the end of Step 7H.
+    current_clip_id = None
+    reader = None
     rows = []
     temporary = OUTPUT.with_suffix(".jsonl.tmp")
     last_progress = started
@@ -108,9 +113,14 @@ def main():
             anchor_id = str(keyframe["anchor_id"])
             clip_id = str(keyframe["clip_id"])
             anchor_ns = int(keyframe["anchor_ns"])
-            reader = readers.setdefault(
-                clip_id, DrivingClipReader(DATASET_RAW_ROOT / clip_id)
-            )
+            if clip_id != current_clip_id:
+                # Rebinding releases the previous Clip reader and all of its
+                # lazily loaded temporal indexes. This is safe because all
+                # Keyframes for one Clip are contiguous.
+                reader = DrivingClipReader(DATASET_RAW_ROOT / clip_id)
+                current_clip_id = clip_id
+            if reader is None:
+                raise RuntimeError("active Clip reader was not initialized")
             ego = reader.get_recorded_ego_state_at_or_before(anchor_ns)
             actors = reader.get_actors_at(anchor_ns)
             if ego is None or ego.stamp_ns != anchor_ns or actors is None or actors.stamp_ns != anchor_ns:

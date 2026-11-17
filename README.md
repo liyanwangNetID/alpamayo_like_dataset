@@ -1,3 +1,5 @@
+# Todo: 接近路口的时候判断转弯就不要看是不是沿着道路延伸了，而是看绝对转弯。只有不是路口的时候才依据对道路延伸的相对角度。
+
 # AlpaSim-Like Multicamera Driving Dataset Pipeline
 
 This repository converts recorded AlpaSim multicamera Clips into a self-contained driving-decision dataset. A single entry point runs the complete production workflow:
